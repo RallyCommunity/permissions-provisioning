@@ -39,7 +39,7 @@ Ext.define('CustomApp', {
     },
     _createSearchResults: function(){
         var store = Ext.create('Ext.data.Store',{
-            fields: ['projectpath','projectid','userid','username','permission']
+            fields: ['projectpath','projectid','owner']
         });
         this.down('#display_box').add({
             xtype: 'rallygrid',
@@ -56,9 +56,12 @@ Ext.define('CustomApp', {
         this.logger.log('_getSearchResultsColumns');
         var permission_types = ['Viewer','Editor','Admin'];
         var columns = [{
-                text:'Project', 
+                text:'Project Path', 
                 dataIndex:'projectpath', 
                 flex: 1
+        },{
+            text:'Project Owner', 
+            dataIndex:'owner', 
         },{ //Request Permission Action
                     xtype:'actioncolumn',
                     items: [{
@@ -96,10 +99,16 @@ Ext.define('CustomApp', {
         permission.set('userid',user.ObjectID);
         permission.set('username',user.UserName);
         permission.set('permission',req_perm);
-        Rally.technicalservices.util.PreferenceSaving.saveAsJSON(permission.getPrefKey(), permission.getPrefValue(), this.getContext().getWorkspace());
-        Rally.ui.notify.Notifier.show({message: req_perm + ' permission submitted for ' + user.UserName + ' for project' + rec.get('projectpath')});
-
-        this._refreshRequestedPermissions(permission.getUserPrefKey(user.ObjectID));
+        Rally.technicalservices.util.PreferenceSaving.saveAsJSON(permission.getPrefKey(), permission.getPrefValue(), this.getContext().getWorkspace()).then({
+            scope: this,
+            success: function(){
+                Rally.ui.notify.Notifier.show({message: req_perm + ' permission submitted for ' + user.UserName + ' for project' + rec.get('projectpath')});
+                this._refreshRequestedPermissions();
+            },
+            failure: function(error){
+                this._notifyUserOfError(error);
+            }
+        });
     },
     _nofityUserOfError: function(error){
         Rally.ui.notify.Notifier.showError({message: error});
@@ -119,10 +128,17 @@ Ext.define('CustomApp', {
         var search_terms = [];
         this.project_selector.getRootNode().cascadeBy(function(nd){
             var val = nd.get(search_field);
-            if (!Ext.Array.contains(search_terms, val)){
+            if (val.length > 1 && !Ext.Array.contains(search_terms, val)){
                 search_terms.push(val);
+                var tokens = val.match(/\S+/g);
+                console.log(tokens, tokens.length);
+                if (tokens.length > 1){
+                    search_terms = _.union(search_terms,tokens);
+                }
             }
         });
+//        _.uniq(search_terms);
+        this.logger.log('typeAhead terms:',search_terms);
         return search_terms;
     },
     _createTreeStore: function(model_fields, model_name, children){
@@ -143,18 +159,23 @@ Ext.define('CustomApp', {
     },
 
     _searchTree: function(){
-        var search_field = 'Name';
+        var search_field = this.down('#search-by-combo').getValue();
         var search_term = this.down('#search-combo').getValue();
         var root = this.project_selector.getRootNode();
         var search_regex = new RegExp(search_term,'gi');
         search_results = []; 
         root.cascadeBy(function(n){
             console.log(n);
-            if (n.getPath(search_field).match(search_regex)){
+            var match_term = n.get(search_field); 
+            if (search_field == 'Name'){
+                match_term = n.get(search_field)
+            }
+            if (match_term.match(search_regex)){
                 console.log('match ', n, n.getPath(search_field));
                 var result = {};
                 result['projectpath'] = n.getPath('Name');
                 result['projectid'] = n.get('id');
+                result['owner'] = n.get('Owner');
                 search_results.push(result);
             }
         });
@@ -165,8 +186,7 @@ Ext.define('CustomApp', {
     },
     _addSearchWidgets: function(cb){
         var search_field = cb.getValue();
-        alert(search_field);
-        var type_ahead_store = this._generateTypeAheadStore('Name');
+        var type_ahead_store = this._generateTypeAheadStore(search_field);
         
         if (this.down('#search-combo')){this.down('#search-combo').destroy();}
         if (this.down('#search-button')){this.down('#search-button').destroy();}
@@ -237,6 +257,7 @@ Ext.define('CustomApp', {
                 items: [{
                     icon: '/slm/images/icon_delete.gif',
                     tooltip: 'Delete',
+                    scope: this,
                     handler: this._deleteRequestedPermission
                 }]
             }]
@@ -244,19 +265,38 @@ Ext.define('CustomApp', {
     },
     _deleteRequestedPermission: function(grid,row,col){
         alert('delete requested permission');
-        this._refreshRequestedPermissions();
+        var perm = grid.getStore().getAt(row);
+        this.logger.log('_deleteRequestedPermission:', perm);
+        Rally.technicalservices.util.PreferenceSaving._cleanPrefs(perm.getPrefKey(),this.getContext().getWorkspace()).then({
+            scope:this,
+            success: function(){
+                this._refreshRequestedPermissions();
+            },
+            failure: function(error){
+                alert(error);
+            }
+        });
+
     },
     _refreshRequestedPermissions: function(user_pref_key){
         this.logger.log('_refreshRequestedPermissions');
+
+        if (user_pref_key == undefined){
+            var userid = this.getContext().getUser().ObjectID;
+            user_pref_key = Rally.technicalservices.TSRequestedPermission.getUserPrefKey(userid);
+        }
+        console.log(user_pref_key);
         var obj = Rally.technicalservices.util.PreferenceSaving.fetchFromJSON(user_pref_key, this.getContext().getWorkspace()).then({
             scope: this,
             success: function(objs){
                 var request_keys = objs[0].getKeys();
                 var requests = [];
                 //var key_regex = new RegExp(this.PREF_NAME.[].)
+                console.log(request_keys);
                 Ext.Array.each(request_keys, function(key){
                     console.log(key);
                     if (Rally.technicalservices.TSRequestedPermission.isValidPrefKey(key)){
+                        console.log('match',key);
                         requests.push(objs[0].get(key));
                     }
                 });
@@ -283,8 +323,7 @@ Ext.define('CustomApp', {
             width: this._getGridWidth(),  
             columnCfgs: this._getRequestedPermissionColumns()
         });
-        var user_pref_key = Rally.technicalservices.TSRequestedPermission.getUserPrefKey(this.getContext().getUser().ObjectID);
-        this._refreshRequestedPermissions(user_pref_key);
+        this._refreshRequestedPermissions();
     },
     _getPlugins: function(){
         return [

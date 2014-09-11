@@ -16,6 +16,8 @@ Ext.define('Rally.technicalservices.util.PreferenceSaving',{
         if (project == undefined) {project == null;}
         if (filterByUser == undefined) {filterByUser = false;}
         
+        var deferred = Ext.create('Deft.Deferred');
+        
         var pref_chunks = this._getJSONChunksFromObject(object);
         var prefs = {};
         Ext.each(pref_chunks, function(chunk, index){
@@ -28,12 +30,24 @@ Ext.define('Rally.technicalservices.util.PreferenceSaving',{
             scope: this,
             success: function(){
                 this.logger.log('preferences cleaned, now saving new ones');
-                this.save(prefs,workspace, appId,filterByUser,project);
+                this.save(prefs,workspace, appId,filterByUser,project).then({
+                    scope: this,
+                    success: function(){
+                        deferred.resolve();
+                    },
+                    failure: function(error){
+                        deferred.reject(error);
+                    }
+                });
+            return deferred.promise; 
             }, 
             failure: function(error){
                 this.logger.log('failed to clean out preferences: ', error);
             }
         });
+    },
+    removePref: function(prefix, workspace,appId, filterByUser,project){
+        this._cleanPrefs(prefix, workspace,appId,filterByUser,project);
     },
     _cleanPrefs: function(prefix,workspace, appId,filterByUser,project){
         this.logger.log('_cleanPrefs');
@@ -151,7 +165,7 @@ Ext.define('Rally.technicalservices.util.PreferenceSaving',{
             },
             failure: function(){
                 this.logger.log('Failed to save preference',prefs);
-                deferred.reject();
+                deferred.reject('Rally.data.PreferenceManager.update failed.');
             }
         });
         return deferred.promise;
