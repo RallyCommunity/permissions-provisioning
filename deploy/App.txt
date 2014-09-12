@@ -3,11 +3,11 @@
 <head>
     <title>permissions-user-request</title>
     <!--  (c) 2014 Rally Software Development Corp.  All Rights Reserved. -->
-    <!--  Build Date: Thu Sep 11 2014 11:07:51 GMT-0600 (MDT) -->
+    <!--  Build Date: Thu Sep 11 2014 11:17:02 GMT-0600 (MDT) -->
     
     <script type="text/javascript">
-        var APP_BUILD_DATE = "Thu Sep 11 2014 11:07:51 GMT-0600 (MDT)";
-        var CHECKSUM = 22448804123;
+        var APP_BUILD_DATE = "Thu Sep 11 2014 11:17:02 GMT-0600 (MDT)";
+        var CHECKSUM = 22087984522;
     </script>
     
     <script type="text/javascript" src="/apps/2.0rc3/sdk.js"></script>
@@ -517,17 +517,6 @@ Ext.define('Rally.technicalservices.TSRequestedPermission',{
         }
         
     }
-});
-Ext.define('Rally.technicalservices.TreePicker', {
-    extend: 'Ext.form.field.Picker',
-    tree_panel: null,
-    createPicker: function() {
-        console.log(this.tree_panel);
-        return this.tree_panel;  
-    }
-    
-
-
 });
 Ext.define('CustomApp', {
     extend: 'Rally.app.App',

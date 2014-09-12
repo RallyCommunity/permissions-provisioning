@@ -39,12 +39,13 @@ Ext.define('Rally.technicalservices.util.PreferenceSaving',{
                         deferred.reject(error);
                     }
                 });
-            return deferred.promise; 
             }, 
             failure: function(error){
                 this.logger.log('failed to clean out preferences: ', error);
+                deferred.reject('failed to clean out preferences: ', error);
             }
         });
+        return deferred.promise; 
     },
     removePref: function(prefix, workspace,appId, filterByUser,project){
         this._cleanPrefs(prefix, workspace,appId,filterByUser,project);
