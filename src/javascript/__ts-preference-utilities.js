@@ -92,8 +92,10 @@ Ext.define('Rally.technicalservices.util.PreferenceSaving',{
     _getObjectFromJSONChunks: function(json_chunks){
         var json_string = '';
         Ext.Array.each(json_chunks, function(chunk){
+            console.log(chunk);
             json_string += chunk;
         });
+        console.log(json_string);
         var obj = Ext.JSON.decode(json_string);
         return obj; 
     },
@@ -133,10 +135,11 @@ Ext.define('Rally.technicalservices.util.PreferenceSaving',{
                 console.log(json_chunks);
                 var objs = new Ext.util.HashMap();
                 json_chunks.each(function(key,value,length){
+                    console.log(key,value.length,length);
                     objs.add(key,this._getObjectFromJSONChunks(value));
                 },this);
                // var obj = this._getObjectFromJSONChunks(json_chunks);
-                console.log(objs);
+                console.log('x',objs);
                 deferred.resolve([objs,last_updated]);
             },
             failure: function(error) {
@@ -152,7 +155,7 @@ Ext.define('Rally.technicalservices.util.PreferenceSaving',{
         if (filterByUser == undefined) {filterByUser = false;}
         
         var deferred = Ext.create('Deft.Deferred');
-        
+        console.log('start');
         Rally.data.PreferenceManager.update({
             appID: appId,
             project: project,

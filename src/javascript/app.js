@@ -6,35 +6,56 @@ Ext.define('CustomApp', {
     USER_PREF_PREFIX: 'permissions.provisioning.user.',
     filter_string: '',
     items: [
-        {xtype:'container',itemId:'message_box', padding: 10},
         {xtype: 'container', itemId: 'requested_permissions_box', layout: 'vbox', padding: 10},
+        {xtype:'container',itemId:'display_box', padding: 10},
         {xtype: 'container', itemId: 'search_box', layout: 'hbox'},
         {xtype: 'container', itemId: 'search_results_box'},
         {xtype:'tsinfolink'}
     ],
     launch: function() {
         //Get the project tree.  If we don't have this, then this app is useless!  
+        var me = this;
+        this.setLoading(true);
         Rally.technicalservices.util.PreferenceSaving.fetchFromJSON(this.PREF_NAME, this.getContext().getWorkspace()).then({
             scope: this, 
             success: this._addAppComponents,
             failure: this._notifyUserOfError
+        }).always(function(){
+            me.setLoading(false);
         });
     },
     _addAppComponents: function(obj){
         //TODO: Handle the case where there is no project tree.  
-
+        this.logger.log('_addAppComponents', obj);
         var tree_obj = obj[0].get(this.PREF_NAME);
         var last_updated = obj[1].get(this.PREF_NAME);
-        this.logger.log('_addAppComponents',tree_obj,last_updated);
-        this.down('#message_box').update('The project tree was last updated on ' + last_updated);
-
+        this.logger.log('_addAppComponents',obj, tree_obj,last_updated);
+        
         
         //Create the internal project tree that we will search  
         this.project_selector = this._createTreeStore(this._getProjectTreeModelFields(),'TSProjectTreeStore',tree_obj);
         
         this._refreshRequestedPermissions(); // creates the grid where we will display the permissions requested by the user
         
-        this._createSearchBox();  //Sets up the components for searching by project name or owner
+        var html ='To request permissions, search for the project (by Project Name or Project Owner) for which you would like permissions and request either Viewer, Editor or Administrator permissions.';
+        if (this.down('#text-area-project-tree-status')){
+            this.down('#text-area-project-tree-status').destroy();
+        }
+        var status =  this.down('#display_box').add({
+            itemId: 'text-area-project-tree-status',
+            xtype: 'container',
+            html: html
+        });
+        var me = this; 
+        if (last_updated){
+            html = html + '\n\nThe available project list was last updated on ' + last_updated + '.';
+            this._createSearchBox();  //Sets up the components for searching by project name or owner
+        } else {
+            html = 'The project tree has not yet been created.  Please contact your Rally Administrator to generate the list of available projects.';
+            var cls = 'cls-error';
+            status.addCls(cls); 
+        }
+        status.update(html);
         
 
     },
@@ -312,23 +333,7 @@ Ext.define('CustomApp', {
                 });
                 
                 this.down('#requested_permissions_box').removeAll();
-               if (requests.length > 0){
-                    var notes = 'Pending permissions requests for ' + this.getContext().getUser().UserName + ':';
-                    this.down('#requested_permissions_box').update(notes);
-//                    this.down('#requested_permissions_box').add({
-//                        xtype: 'textfield',
-//                        value: notes,
-//                        border: false
-//                    });
-                    this._createRequestedPermissionsGrid(requests);
-                } else {
-                    var notes = 'There are no pending permissions requests for ' + this.getContext().getUser().UserName;
-                    this.down('#requested_permissions_box').add({
-                        xtype: 'textfield',
-                        value: notes,
-                        border: false
-                    });
-                }
+                this._createRequestedPermissionsGrid(requests);
             },
             failure: function(error){
                 alert(error);
@@ -355,7 +360,10 @@ Ext.define('CustomApp', {
             xtype: 'rallygrid',
             itemId: 'requested-permissions-grid',
             store: store,
-            width: this._getGridWidth(),  
+            width: this._getGridWidth(), 
+            emptyText: 'No pending permission requests found for ' + this.getContext().getUser().UserName,
+            showPagingToolbar: false,
+            title: 'Pending Permission Requests for ' + this.getContext().getUser().UserName,
             columnCfgs: this._getRequestedPermissionColumns(),
             pagingToolbarCfg: {
                 store: store

@@ -3,11 +3,11 @@
 <head>
     <title>permissions-user-request</title>
     <!--  (c) 2014 Rally Software Development Corp.  All Rights Reserved. -->
-    <!--  Build Date: Thu Sep 11 2014 11:17:02 GMT-0600 (MDT) -->
+    <!--  Build Date: Thu Sep 11 2014 23:04:57 GMT-0600 (MDT) -->
     
     <script type="text/javascript">
-        var APP_BUILD_DATE = "Thu Sep 11 2014 11:17:02 GMT-0600 (MDT)";
-        var CHECKSUM = 22087984522;
+        var APP_BUILD_DATE = "Thu Sep 11 2014 23:04:57 GMT-0600 (MDT)";
+        var CHECKSUM = 23409356235;
     </script>
     
     <script type="text/javascript" src="/apps/2.0rc3/sdk.js"></script>
@@ -77,12 +77,13 @@ Ext.define('Rally.technicalservices.util.PreferenceSaving',{
                         deferred.reject(error);
                     }
                 });
-            return deferred.promise; 
             }, 
             failure: function(error){
                 this.logger.log('failed to clean out preferences: ', error);
+                deferred.reject('failed to clean out preferences: ', error);
             }
         });
+        return deferred.promise; 
     },
     removePref: function(prefix, workspace,appId, filterByUser,project){
         this._cleanPrefs(prefix, workspace,appId,filterByUser,project);
@@ -527,11 +528,11 @@ Ext.define('CustomApp', {
     filter_string: '',
     items: [
         {xtype:'container',itemId:'message_box', padding: 10},
+        {xtype: 'container', itemId: 'requested_permissions_box', layout: 'vbox', padding: 10},
         {xtype: 'container', itemId: 'search_box', layout: 'hbox'},
-        {xtype:'container',itemId:'display_box'},
+        {xtype: 'container', itemId: 'search_results_box'},
         {xtype:'tsinfolink'}
     ],
-    default_permission: 'Editor',
     launch: function() {
         //Get the project tree.  If we don't have this, then this app is useless!  
         Rally.technicalservices.util.PreferenceSaving.fetchFromJSON(this.PREF_NAME, this.getContext().getWorkspace()).then({
@@ -547,30 +548,40 @@ Ext.define('CustomApp', {
         var last_updated = obj[1].get(this.PREF_NAME);
         this.logger.log('_addAppComponents',tree_obj,last_updated);
         this.down('#message_box').update('The project tree was last updated on ' + last_updated);
+
         
         //Create the internal project tree that we will search  
         this.project_selector = this._createTreeStore(this._getProjectTreeModelFields(),'TSProjectTreeStore',tree_obj);
-
+        
+        this._refreshRequestedPermissions(); // creates the grid where we will display the permissions requested by the user
+        
         this._createSearchBox();  //Sets up the components for searching by project name or owner
         
-        this._createSearchResults(); //creates the search results grid panel that we will add permissions from
 
-        this._createRequestedPermissionsGrid(); // creates the grid where we will display the permissions requested by the user
     },
-    _createSearchResults: function(){
+    _createSearchResults: function(results){
+        this.down('#search_results_box').removeAll();
+        
         var store = Ext.create('Ext.data.Store',{
-            fields: ['projectpath','projectid','owner']
+            fields: ['projectpath','projectid','owner'],
+            limit: 'infinity',
+            pageSize: 10,
+            data: results
         });
-        this.down('#display_box').add({
+        this.down('#search_results_box').add({
             xtype: 'rallygrid',
             itemId: 'search-results-grid',
             store: store,
-            selType: 'rowmodel',
-            plugins: this._getPlugins(),
+          //  selType: 'rowmodel',
+          //  plugins: this._getPlugins(),
             width: 800,  //Set to just less than document.width
-            columnCfgs: this._getSearchResultsColumns()
+            columnCfgs: this._getSearchResultsColumns(),
+            showPagingToolbar: true,
+            pagingToolbarCfg: {
+                pageSizes: [10, 50, 100, 200],
+                store: store,
+            }
         });
-        this.down('#search-results-grid').setVisible(false);
     },
     _getSearchResultsColumns: function(){
         this.logger.log('_getSearchResultsColumns');
@@ -646,7 +657,9 @@ Ext.define('CustomApp', {
         this.logger.log('_generateTypeAheadStore', search_field);
         //generate an array of all project names
         var search_terms = [];
+        var project_count = 0;
         this.project_selector.getRootNode().cascadeBy(function(nd){
+            project_count++;
             var val = nd.get(search_field);
             if (val.length > 1 && !Ext.Array.contains(search_terms, val)){
                 search_terms.push(val);
@@ -656,9 +669,9 @@ Ext.define('CustomApp', {
                     search_terms = _.union(search_terms,tokens);
                 }
             }
+            search_terms.sort();
         });
-//        _.uniq(search_terms);
-        this.logger.log('typeAhead terms:',search_terms);
+        this.logger.log('_generateTypeAheadStore END', project_count);
         return search_terms;
     },
     _createTreeStore: function(model_fields, model_name, children){
@@ -685,7 +698,7 @@ Ext.define('CustomApp', {
         var search_regex = new RegExp(search_term,'gi');
         search_results = []; 
         root.cascadeBy(function(n){
-            console.log(n);
+            console.log(n.get('Name'));
             var match_term = n.get(search_field); 
             if (search_field == 'Name'){
                 match_term = n.get(search_field)
@@ -698,11 +711,10 @@ Ext.define('CustomApp', {
                 result['owner'] = n.get('Owner');
                 search_results.push(result);
             }
+            return true;
         });
-        var store = this.down('#search-results-grid').getStore();
-        store.removeAll(false);
-        store.add(search_results);
-        this.down('#search-results-grid').setVisible(true);
+        this._createSearchResults(search_results);
+
     },
     _addSearchWidgets: function(cb){
         var search_field = cb.getValue();
@@ -805,14 +817,13 @@ Ext.define('CustomApp', {
             var userid = this.getContext().getUser().ObjectID;
             user_pref_key = Rally.technicalservices.TSRequestedPermission.getUserPrefKey(userid);
         }
-        console.log(user_pref_key);
+
         var obj = Rally.technicalservices.util.PreferenceSaving.fetchFromJSON(user_pref_key, this.getContext().getWorkspace()).then({
             scope: this,
             success: function(objs){
                 var request_keys = objs[0].getKeys();
                 var requests = [];
                 //var key_regex = new RegExp(this.PREF_NAME.[].)
-                console.log(request_keys);
                 Ext.Array.each(request_keys, function(key){
                     console.log(key);
                     if (Rally.technicalservices.TSRequestedPermission.isValidPrefKey(key)){
@@ -820,8 +831,25 @@ Ext.define('CustomApp', {
                         requests.push(objs[0].get(key));
                     }
                 });
-                this.down('#requested-permissions-grid').getStore().removeAll(false);
-                this.down('#requested-permissions-grid').getStore().add(requests);
+                
+                this.down('#requested_permissions_box').removeAll();
+               if (requests.length > 0){
+                    var notes = 'Pending permissions requests for ' + this.getContext().getUser().UserName + ':';
+                    this.down('#requested_permissions_box').update(notes);
+//                    this.down('#requested_permissions_box').add({
+//                        xtype: 'textfield',
+//                        value: notes,
+//                        border: false
+//                    });
+                    this._createRequestedPermissionsGrid(requests);
+                } else {
+                    var notes = 'There are no pending permissions requests for ' + this.getContext().getUser().UserName;
+                    this.down('#requested_permissions_box').add({
+                        xtype: 'textfield',
+                        value: notes,
+                        border: false
+                    });
+                }
             },
             failure: function(error){
                 alert(error);
@@ -832,18 +860,28 @@ Ext.define('CustomApp', {
       //Set to just less than document.width
         return 800;
     },
-    _createRequestedPermissionsGrid: function(){
-        var store = Ext.create('Ext.data.Store',{
-            model: 'Rally.technicalservices.TSRequestedPermission'
+    _createRequestedPermissionsStore: function(data){
+        var store = Ext.create('Rally.data.custom.Store',{
+            model: 'Rally.technicalservices.TSRequestedPermission',
+            limit: 'infinity',
+            data: data
         });
-        this.down('#display_box').add({
+        return store;
+    },
+    _createRequestedPermissionsGrid: function(data){
+        
+        var store = this._createRequestedPermissionsStore(data);
+        
+        this.down('#requested_permissions_box').add({
             xtype: 'rallygrid',
             itemId: 'requested-permissions-grid',
             store: store,
             width: this._getGridWidth(),  
-            columnCfgs: this._getRequestedPermissionColumns()
+            columnCfgs: this._getRequestedPermissionColumns(),
+            pagingToolbarCfg: {
+                store: store
+            }
         });
-        this._refreshRequestedPermissions();
     },
     _getPlugins: function(){
         return [
