@@ -3,11 +3,11 @@
 <head>
     <title>permissions-user-request</title>
     <!--  (c) 2014 Rally Software Development Corp.  All Rights Reserved. -->
-    <!--  Build Date: Thu Sep 11 2014 23:04:57 GMT-0600 (MDT) -->
+    <!--  Build Date: Sun Sep 14 2014 21:46:11 GMT-0600 (MDT) -->
     
     <script type="text/javascript">
-        var APP_BUILD_DATE = "Thu Sep 11 2014 23:04:57 GMT-0600 (MDT)";
-        var CHECKSUM = 23409356235;
+        var APP_BUILD_DATE = "Sun Sep 14 2014 21:46:11 GMT-0600 (MDT)";
+        var CHECKSUM = 26514243154;
     </script>
     
     <script type="text/javascript" src="/apps/2.0rc3/sdk.js"></script>
@@ -130,8 +130,10 @@ Ext.define('Rally.technicalservices.util.PreferenceSaving',{
     _getObjectFromJSONChunks: function(json_chunks){
         var json_string = '';
         Ext.Array.each(json_chunks, function(chunk){
+            console.log(chunk);
             json_string += chunk;
         });
+        console.log(json_string);
         var obj = Ext.JSON.decode(json_string);
         return obj; 
     },
@@ -171,10 +173,11 @@ Ext.define('Rally.technicalservices.util.PreferenceSaving',{
                 console.log(json_chunks);
                 var objs = new Ext.util.HashMap();
                 json_chunks.each(function(key,value,length){
+                    console.log(key,value.length,length);
                     objs.add(key,this._getObjectFromJSONChunks(value));
                 },this);
                // var obj = this._getObjectFromJSONChunks(json_chunks);
-                console.log(objs);
+                console.log('x',objs);
                 deferred.resolve([objs,last_updated]);
             },
             failure: function(error) {
@@ -190,7 +193,7 @@ Ext.define('Rally.technicalservices.util.PreferenceSaving',{
         if (filterByUser == undefined) {filterByUser = false;}
         
         var deferred = Ext.create('Deft.Deferred');
-        
+        console.log('start');
         Rally.data.PreferenceManager.update({
             appID: appId,
             project: project,
@@ -527,35 +530,56 @@ Ext.define('CustomApp', {
     USER_PREF_PREFIX: 'permissions.provisioning.user.',
     filter_string: '',
     items: [
-        {xtype:'container',itemId:'message_box', padding: 10},
         {xtype: 'container', itemId: 'requested_permissions_box', layout: 'vbox', padding: 10},
+        {xtype:'container',itemId:'display_box', padding: 10},
         {xtype: 'container', itemId: 'search_box', layout: 'hbox'},
         {xtype: 'container', itemId: 'search_results_box'},
         {xtype:'tsinfolink'}
     ],
     launch: function() {
         //Get the project tree.  If we don't have this, then this app is useless!  
+        var me = this;
+        this.setLoading(true);
         Rally.technicalservices.util.PreferenceSaving.fetchFromJSON(this.PREF_NAME, this.getContext().getWorkspace()).then({
             scope: this, 
             success: this._addAppComponents,
             failure: this._notifyUserOfError
+        }).always(function(){
+            me.setLoading(false);
         });
     },
     _addAppComponents: function(obj){
         //TODO: Handle the case where there is no project tree.  
-
+        this.logger.log('_addAppComponents', obj);
         var tree_obj = obj[0].get(this.PREF_NAME);
         var last_updated = obj[1].get(this.PREF_NAME);
-        this.logger.log('_addAppComponents',tree_obj,last_updated);
-        this.down('#message_box').update('The project tree was last updated on ' + last_updated);
-
+        this.logger.log('_addAppComponents',obj, tree_obj,last_updated);
+        
         
         //Create the internal project tree that we will search  
         this.project_selector = this._createTreeStore(this._getProjectTreeModelFields(),'TSProjectTreeStore',tree_obj);
         
         this._refreshRequestedPermissions(); // creates the grid where we will display the permissions requested by the user
         
-        this._createSearchBox();  //Sets up the components for searching by project name or owner
+        var html ='To request permissions, search for the project (by Project Name or Project Owner) for which you would like permissions and request either Viewer, Editor or Administrator permissions.';
+        if (this.down('#text-area-project-tree-status')){
+            this.down('#text-area-project-tree-status').destroy();
+        }
+        var status =  this.down('#display_box').add({
+            itemId: 'text-area-project-tree-status',
+            xtype: 'container',
+            html: html
+        });
+        var me = this; 
+        if (last_updated){
+            html = html + '\n\nThe available project list was last updated on ' + last_updated + '.';
+            this._createSearchBox();  //Sets up the components for searching by project name or owner
+        } else {
+            html = 'The project tree has not yet been created.  Please contact your Rally Administrator to generate the list of available projects.';
+            var cls = 'cls-error';
+            status.addCls(cls); 
+        }
+        status.update(html);
         
 
     },
@@ -585,6 +609,7 @@ Ext.define('CustomApp', {
     },
     _getSearchResultsColumns: function(){
         this.logger.log('_getSearchResultsColumns');
+        var me = this;
         var permission_types = ['Viewer','Editor','Admin'];
         var columns = [{
                 text:'Project Path', 
@@ -593,35 +618,87 @@ Ext.define('CustomApp', {
         },{
             text:'Project Owner', 
             dataIndex:'owner', 
-        },{ //Request Permission Action
-                    xtype:'actioncolumn',
-                    items: [{
-                        icon: 'extjs/examples/shared/icons/fam/cog_edit.png',  // Use a URL in the icon config
-                        tooltip: 'Request Viewer Permission',
-                        handler: this._addRequestedPermission,
-                        value: 'Viewer',
-                        scope:this
-                    },{
-                        icon: 'extjs/examples/shared/icons/fam/cog_edit.png',  // Use a URL in the icon config
-                        tooltip: 'Request Editor Permission',
-                        handler: this._addRequestedPermission,
-                        value: 'Editor',
-                        scope:this
-                    },{
-                        icon: 'extjs/examples/restful/images/delete.png',
-                        tooltip: 'Request Admin permission',
-                        handler: this._addRequestedPermission,
-                        value: 'Admin',
-                        scope:this
-                    }]
-                    
+//        },{ //Request Permission Action
+//                    xtype:'actioncolumn',
+//                    items: [{
+//                        icon: '',  // Use a URL in the icon config
+//                        iconCls: 'viewer',
+//                        tooltip: 'Request Viewer Permission',
+//                        handler: this._addRequestedPermission,
+//                        value: 'Viewer',
+//                        scope:this
+//                    },{
+//                        icon: '',  // Use a URL in the icon config
+//                        tooltip: 'Request Editor Permission',
+//                        handler: this._addRequestedPermission,
+//                        value: 'Editor',
+//                        iconCls: 'editor',
+//                        scope:this
+//                    },{
+//                        icon: '',
+//                        iconCls: 'administrator',
+//                        tooltip: 'Request Admin permission',
+//                        handler: this._addRequestedPermission,
+//                        value: 'Admin',
+//                        scope:this
+//                    }]
+        },{
+            width: 75,   
+            renderer: function (v, m, rec, row, col) {
+                var id = Ext.id();
+                Ext.defer(function () {
+                    Ext.widget('button', {
+                        renderTo: id,
+                        text: 'Viewer',
+                        scope: this,
+                        cls: 'request-button',
+                        handler: function () {
+                            me._addRequestedPermission(rec, row, 'Viewer', me);
+                        }
+                    });
+                }, 50, this);
+            return Ext.String.format('<div id="{0}"></div>', id);
+            }
+        },{
+            width: 75,    
+            renderer: function (v, m, rec, row, col) {
+                    var id = Ext.id();
+                    Ext.defer(function () {
+                        Ext.widget('button', {
+                            renderTo: id,
+                            text: 'Editor',
+                            scope: this,
+                            cls: 'request-button',
+                            handler: function () {
+                                me._addRequestedPermission(rec, row, 'Editor', me);
+                            }
+                        });
+                    }, 50, this);
+                return Ext.String.format('<div id="{0}"></div>', id);
+                }
+        },{
+            width: 75,    
+                    renderer: function (v, m, rec, row, col) {
+                        var id = Ext.id();
+                        Ext.defer(function () {
+                            Ext.widget('button', {
+                                renderTo: id,
+                                text: 'Admin',
+                                scope: this,
+                                cls: 'request-button',
+                                handler: function () {
+                                    me._addRequestedPermission(rec, row, 'Admin', me);
+                                }
+                            });
+                        }, 50, this);
+                    return Ext.String.format('<div id="{0}"></div>', id);
+                    }
                 }];
         return columns;        
     },
-    _addRequestedPermission: function(grid, row, col,evt){
-        console.log(grid,row,col);        
-        var req_perm = evt.value;    
-        var rec = grid.getStore().getAt(row);
+
+    _addRequestedPermission: function(rec, row,type, me){
+        me.logger.log('_addRequestedPermission', row, type);
         
         var user = this.getContext().getUser();
         var permission = Ext.create('Rally.technicalservices.TSRequestedPermission');
@@ -629,15 +706,15 @@ Ext.define('CustomApp', {
         permission.set('projectpath',rec.get('projectpath'))
         permission.set('userid',user.ObjectID);
         permission.set('username',user.UserName);
-        permission.set('permission',req_perm);
-        Rally.technicalservices.util.PreferenceSaving.saveAsJSON(permission.getPrefKey(), permission.getPrefValue(), this.getContext().getWorkspace()).then({
+        permission.set('permission',type);
+        Rally.technicalservices.util.PreferenceSaving.saveAsJSON(permission.getPrefKey(), permission.getPrefValue(), me.getContext().getWorkspace()).then({
             scope: this,
             success: function(){
-                Rally.ui.notify.Notifier.show({message: req_perm + ' permission submitted for ' + user.UserName + ' for project' + rec.get('projectpath')});
-                this._refreshRequestedPermissions();
+                Rally.ui.notify.Notifier.show({message: type + ' permission submitted for ' + user.UserName + ' for project' + rec.get('projectpath')});
+                me._refreshRequestedPermissions();
             },
             failure: function(error){
-                this._notifyUserOfError(error);
+                me._notifyUserOfError(error);
             }
         });
     },
@@ -796,7 +873,6 @@ Ext.define('CustomApp', {
         return columns;        
     },
     _deleteRequestedPermission: function(grid,row,col){
-        alert('delete requested permission');
         var perm = grid.getStore().getAt(row);
         this.logger.log('_deleteRequestedPermission:', perm);
         Rally.technicalservices.util.PreferenceSaving._cleanPrefs(perm.getPrefKey(),this.getContext().getWorkspace()).then({
@@ -833,23 +909,7 @@ Ext.define('CustomApp', {
                 });
                 
                 this.down('#requested_permissions_box').removeAll();
-               if (requests.length > 0){
-                    var notes = 'Pending permissions requests for ' + this.getContext().getUser().UserName + ':';
-                    this.down('#requested_permissions_box').update(notes);
-//                    this.down('#requested_permissions_box').add({
-//                        xtype: 'textfield',
-//                        value: notes,
-//                        border: false
-//                    });
-                    this._createRequestedPermissionsGrid(requests);
-                } else {
-                    var notes = 'There are no pending permissions requests for ' + this.getContext().getUser().UserName;
-                    this.down('#requested_permissions_box').add({
-                        xtype: 'textfield',
-                        value: notes,
-                        border: false
-                    });
-                }
+                this._createRequestedPermissionsGrid(requests);
             },
             failure: function(error){
                 alert(error);
@@ -876,7 +936,10 @@ Ext.define('CustomApp', {
             xtype: 'rallygrid',
             itemId: 'requested-permissions-grid',
             store: store,
-            width: this._getGridWidth(),  
+            width: this._getGridWidth(), 
+            emptyText: 'No pending permission requests found for ' + this.getContext().getUser().UserName,
+            showPagingToolbar: false,
+            title: 'Pending Permission Requests for ' + this.getContext().getUser().UserName,
             columnCfgs: this._getRequestedPermissionColumns(),
             pagingToolbarCfg: {
                 store: store
@@ -920,6 +983,17 @@ Ext.define('CustomApp', {
 highlighted {
 	background: #00FF00'
 }
+.cls-error{
+    color: #FF0000
+}
+.request-button {
+    text-align: center;
+    color: #000000;
+    background: #C0C0C0;
+    border-style: solid;
+    border-width: 1px;
+}
+
     </style>
 
 </head>

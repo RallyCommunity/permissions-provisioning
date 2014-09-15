@@ -21,3 +21,10 @@ highlighted {
 .cls-error{
     color: #FF0000
 }
+.request-button {
+    text-align: center;
+    color: #000000;
+    background: #C0C0C0;
+    border-style: solid;
+    border-width: 1px;
+}

@@ -85,6 +85,7 @@ Ext.define('CustomApp', {
     },
     _getSearchResultsColumns: function(){
         this.logger.log('_getSearchResultsColumns');
+        var me = this;
         var permission_types = ['Viewer','Editor','Admin'];
         var columns = [{
                 text:'Project Path', 
@@ -93,35 +94,87 @@ Ext.define('CustomApp', {
         },{
             text:'Project Owner', 
             dataIndex:'owner', 
-        },{ //Request Permission Action
-                    xtype:'actioncolumn',
-                    items: [{
-                        icon: 'extjs/examples/shared/icons/fam/cog_edit.png',  // Use a URL in the icon config
-                        tooltip: 'Request Viewer Permission',
-                        handler: this._addRequestedPermission,
-                        value: 'Viewer',
-                        scope:this
-                    },{
-                        icon: 'extjs/examples/shared/icons/fam/cog_edit.png',  // Use a URL in the icon config
-                        tooltip: 'Request Editor Permission',
-                        handler: this._addRequestedPermission,
-                        value: 'Editor',
-                        scope:this
-                    },{
-                        icon: 'extjs/examples/restful/images/delete.png',
-                        tooltip: 'Request Admin permission',
-                        handler: this._addRequestedPermission,
-                        value: 'Admin',
-                        scope:this
-                    }]
-                    
+//        },{ //Request Permission Action
+//                    xtype:'actioncolumn',
+//                    items: [{
+//                        icon: '',  // Use a URL in the icon config
+//                        iconCls: 'viewer',
+//                        tooltip: 'Request Viewer Permission',
+//                        handler: this._addRequestedPermission,
+//                        value: 'Viewer',
+//                        scope:this
+//                    },{
+//                        icon: '',  // Use a URL in the icon config
+//                        tooltip: 'Request Editor Permission',
+//                        handler: this._addRequestedPermission,
+//                        value: 'Editor',
+//                        iconCls: 'editor',
+//                        scope:this
+//                    },{
+//                        icon: '',
+//                        iconCls: 'administrator',
+//                        tooltip: 'Request Admin permission',
+//                        handler: this._addRequestedPermission,
+//                        value: 'Admin',
+//                        scope:this
+//                    }]
+        },{
+            width: 75,   
+            renderer: function (v, m, rec, row, col) {
+                var id = Ext.id();
+                Ext.defer(function () {
+                    Ext.widget('button', {
+                        renderTo: id,
+                        text: 'Viewer',
+                        scope: this,
+                        cls: 'request-button',
+                        handler: function () {
+                            me._addRequestedPermission(rec, row, 'Viewer', me);
+                        }
+                    });
+                }, 50, this);
+            return Ext.String.format('<div id="{0}"></div>', id);
+            }
+        },{
+            width: 75,    
+            renderer: function (v, m, rec, row, col) {
+                    var id = Ext.id();
+                    Ext.defer(function () {
+                        Ext.widget('button', {
+                            renderTo: id,
+                            text: 'Editor',
+                            scope: this,
+                            cls: 'request-button',
+                            handler: function () {
+                                me._addRequestedPermission(rec, row, 'Editor', me);
+                            }
+                        });
+                    }, 50, this);
+                return Ext.String.format('<div id="{0}"></div>', id);
+                }
+        },{
+            width: 75,    
+                    renderer: function (v, m, rec, row, col) {
+                        var id = Ext.id();
+                        Ext.defer(function () {
+                            Ext.widget('button', {
+                                renderTo: id,
+                                text: 'Admin',
+                                scope: this,
+                                cls: 'request-button',
+                                handler: function () {
+                                    me._addRequestedPermission(rec, row, 'Admin', me);
+                                }
+                            });
+                        }, 50, this);
+                    return Ext.String.format('<div id="{0}"></div>', id);
+                    }
                 }];
         return columns;        
     },
-    _addRequestedPermission: function(grid, row, col,evt){
-        console.log(grid,row,col);        
-        var req_perm = evt.value;    
-        var rec = grid.getStore().getAt(row);
+
+    _addRequestedPermission: function(rec, row,type, me){
+        me.logger.log('_addRequestedPermission', row, type);
         
         var user = this.getContext().getUser();
         var permission = Ext.create('Rally.technicalservices.TSRequestedPermission');
@@ -129,15 +182,15 @@ Ext.define('CustomApp', {
         permission.set('projectpath',rec.get('projectpath'))
         permission.set('userid',user.ObjectID);
         permission.set('username',user.UserName);
-        permission.set('permission',req_perm);
-        Rally.technicalservices.util.PreferenceSaving.saveAsJSON(permission.getPrefKey(), permission.getPrefValue(), this.getContext().getWorkspace()).then({
+        permission.set('permission',type);
+        Rally.technicalservices.util.PreferenceSaving.saveAsJSON(permission.getPrefKey(), permission.getPrefValue(), me.getContext().getWorkspace()).then({
             scope: this,
             success: function(){
-                Rally.ui.notify.Notifier.show({message: req_perm + ' permission submitted for ' + user.UserName + ' for project' + rec.get('projectpath')});
-                this._refreshRequestedPermissions();
+                Rally.ui.notify.Notifier.show({message: type + ' permission submitted for ' + user.UserName + ' for project' + rec.get('projectpath')});
+                me._refreshRequestedPermissions();
             },
             failure: function(error){
-                this._notifyUserOfError(error);
+                me._notifyUserOfError(error);
             }
         });
     },
@@ -296,7 +349,6 @@ Ext.define('CustomApp', {
         return columns;        
     },
     _deleteRequestedPermission: function(grid,row,col){
-        alert('delete requested permission');
         var perm = grid.getStore().getAt(row);
         this.logger.log('_deleteRequestedPermission:', perm);
         Rally.technicalservices.util.PreferenceSaving._cleanPrefs(perm.getPrefKey(),this.getContext().getWorkspace()).then({

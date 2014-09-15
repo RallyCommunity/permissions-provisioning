@@ -3,10 +3,10 @@
 <head>
     <title>permissions-user-request</title>
     <!--  (c) 2013 Rally Software Development Corp.  All Rights Reserved. -->
-    <!--  Build Date: Thu Sep 11 2014 23:04:57 GMT-0600 (MDT) -->
+    <!--  Build Date: Sun Sep 14 2014 21:46:11 GMT-0600 (MDT) -->
     
     <script type="text/javascript">
-        var APP_BUILD_DATE = "Thu Sep 11 2014 23:04:57 GMT-0600 (MDT)";
+        var APP_BUILD_DATE = "Sun Sep 14 2014 21:46:11 GMT-0600 (MDT)";
         var CHECKSUM = [%= checksum %];
     </script>
     
@@ -44,6 +44,17 @@
 highlighted {
 	background: #00FF00'
 }
+.cls-error{
+    color: #FF0000
+}
+.request-button {
+    text-align: center;
+    color: #000000;
+    background: #C0C0C0;
+    border-style: solid;
+    border-width: 1px;
+}
+
     </style>
 
 </head>
