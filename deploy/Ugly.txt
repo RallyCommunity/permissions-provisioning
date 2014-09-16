@@ -3,10 +3,10 @@
 <head>
     <title>permissions-user-request</title>
     <!--  (c) 2013 Rally Software Development Corp.  All Rights Reserved. -->
-    <!--  Build Date: Sun Sep 14 2014 21:46:11 GMT-0600 (MDT) -->
+    <!--  Build Date: Tue Sep 16 2014 00:23:54 GMT-0600 (MDT) -->
     
     <script type="text/javascript">
-        var APP_BUILD_DATE = "Sun Sep 14 2014 21:46:11 GMT-0600 (MDT)";
+        var APP_BUILD_DATE = "Tue Sep 16 2014 00:23:54 GMT-0600 (MDT)";
         var CHECKSUM = [%= checksum %];
     </script>
     

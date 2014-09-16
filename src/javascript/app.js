@@ -15,8 +15,8 @@ Ext.define('CustomApp', {
     launch: function() {
         //Get the project tree.  If we don't have this, then this app is useless!  
         var me = this;
-        this.setLoading(true);
-        Rally.technicalservices.util.PreferenceSaving.fetchFromJSON(this.PREF_NAME, this.getContext().getWorkspace()).then({
+        this.setLoading({msg: 'Loading Project Tree...'});
+        Rally.technicalservices.util.PreferenceSaving.fetchFromJSON(this._getPrefName(), this.getContext().getWorkspaceRef()).then({
             scope: this, 
             success: this._addAppComponents,
             failure: this._notifyUserOfError
@@ -24,11 +24,19 @@ Ext.define('CustomApp', {
             me.setLoading(false);
         });
     },
+    _getPrefName: function(){
+        var wksp_id = this.getContext().getWorkspace().ObjectID;
+        return wksp_id.toString() + this.PREF_NAME;  
+    },
+    _getUserPrefName: function(){
+        var wksp_id = this.getContext().getWorkspace().ObjectID;
+        return wksp_id.toString() + this.USER_PREF_PREFIX;  
+    },
     _addAppComponents: function(obj){
         //TODO: Handle the case where there is no project tree.  
         this.logger.log('_addAppComponents', obj);
-        var tree_obj = obj[0].get(this.PREF_NAME);
-        var last_updated = obj[1].get(this.PREF_NAME);
+        var tree_obj = obj[0].get(this._getPrefName());
+        var last_updated = obj[1].get(this._getPrefName());
         this.logger.log('_addAppComponents',obj, tree_obj,last_updated);
         
         
@@ -94,30 +102,10 @@ Ext.define('CustomApp', {
         },{
             text:'Project Owner', 
             dataIndex:'owner', 
-//        },{ //Request Permission Action
-//                    xtype:'actioncolumn',
-//                    items: [{
-//                        icon: '',  // Use a URL in the icon config
-//                        iconCls: 'viewer',
-//                        tooltip: 'Request Viewer Permission',
-//                        handler: this._addRequestedPermission,
-//                        value: 'Viewer',
-//                        scope:this
-//                    },{
-//                        icon: '',  // Use a URL in the icon config
-//                        tooltip: 'Request Editor Permission',
-//                        handler: this._addRequestedPermission,
-//                        value: 'Editor',
-//                        iconCls: 'editor',
-//                        scope:this
-//                    },{
-//                        icon: '',
-//                        iconCls: 'administrator',
-//                        tooltip: 'Request Admin permission',
-//                        handler: this._addRequestedPermission,
-//                        value: 'Admin',
-//                        scope:this
-//                    }]
+        },{
+            text: 'Team Member?',
+            dataIndex: 'team_member',
+            xtype: 'checkcolumn'    
         },{
             width: 75,   
             renderer: function (v, m, rec, row, col) {
@@ -175,15 +163,17 @@ Ext.define('CustomApp', {
 
     _addRequestedPermission: function(rec, row,type, me){
         me.logger.log('_addRequestedPermission', row, type);
-        
+        rec.get('team_member')
         var user = this.getContext().getUser();
+        var wksp_id = this.getContext().getWorkspace().ObjectID;
         var permission = Ext.create('Rally.technicalservices.TSRequestedPermission');
         permission.set('projectid',rec.get('projectid'));
         permission.set('projectpath',rec.get('projectpath'))
         permission.set('userid',user.ObjectID);
         permission.set('username',user.UserName);
         permission.set('permission',type);
-        Rally.technicalservices.util.PreferenceSaving.saveAsJSON(permission.getPrefKey(), permission.getPrefValue(), me.getContext().getWorkspace()).then({
+        permission.set('team_member', rec.get('team_member'));
+        Rally.technicalservices.util.PreferenceSaving.saveAsJSON(permission.getPrefKey(wksp_id), permission.getPrefValue(), me.getContext().getWorkspaceRef()).then({
             scope: this,
             success: function(){
                 Rally.ui.notify.Notifier.show({message: type + ' permission submitted for ' + user.UserName + ' for project' + rec.get('projectpath')});
@@ -254,10 +244,9 @@ Ext.define('CustomApp', {
             console.log(n.get('Name'));
             var match_term = n.get(search_field); 
             if (search_field == 'Name'){
-                match_term = n.get(search_field)
+                match_term = n.getPath(search_field)
             }
             if (match_term.match(search_regex)){
-                console.log('match ', n, n.getPath(search_field));
                 var result = {};
                 result['projectpath'] = n.getPath('Name');
                 result['projectid'] = n.get('id');
@@ -267,7 +256,6 @@ Ext.define('CustomApp', {
             return true;
         });
         this._createSearchResults(search_results);
-
     },
     _addSearchWidgets: function(cb){
         var search_field = cb.getValue();
@@ -303,7 +291,9 @@ Ext.define('CustomApp', {
             data: [{display:'Project Name', field_name:'Name'},
                    {display:'Owner Name or Email', field_name:'Owner'}]  //TODO if we want to search by otherfields, this is where we will set that up.  
 
-        });        this.down('#search_box').add({
+        });        
+        
+        this.down('#search_box').add({
             xtype: 'combobox',
             itemId: 'search-by-combo',
             store: search_store,
@@ -337,6 +327,15 @@ Ext.define('CustomApp', {
             { //Requested Permission
                 text: 'Requested Permission',
                 dataIndex: 'permission',
+            },{ //Team Member (True or False)
+                text: 'Team Member?',
+                dataIndex: 'team_member',
+                renderer: function(v){
+                    if (v) {
+                        return 'Yes';
+                    }
+                    return 'No';
+                }
             },{ //Action Column
                 xtype:'actioncolumn',
                 items: [{
@@ -350,8 +349,9 @@ Ext.define('CustomApp', {
     },
     _deleteRequestedPermission: function(grid,row,col){
         var perm = grid.getStore().getAt(row);
+        var wksp_id = this.getContext().getWorkspace().ObjectID;
         this.logger.log('_deleteRequestedPermission:', perm);
-        Rally.technicalservices.util.PreferenceSaving._cleanPrefs(perm.getPrefKey(),this.getContext().getWorkspace()).then({
+        Rally.technicalservices.util.PreferenceSaving._cleanPrefs(perm.getPrefKey(wksp_id),this.getContext().getWorkspaceRef()).then({
             scope:this,
             success: function(){
                 this._refreshRequestedPermissions();
@@ -370,20 +370,16 @@ Ext.define('CustomApp', {
             user_pref_key = Rally.technicalservices.TSRequestedPermission.getUserPrefKey(userid);
         }
 
-        var obj = Rally.technicalservices.util.PreferenceSaving.fetchFromJSON(user_pref_key, this.getContext().getWorkspace()).then({
+        var obj = Rally.technicalservices.util.PreferenceSaving.fetchFromJSON(user_pref_key, this.getContext().getWorkspaceRef()).then({
             scope: this,
             success: function(objs){
                 var request_keys = objs[0].getKeys();
                 var requests = [];
-                //var key_regex = new RegExp(this.PREF_NAME.[].)
                 Ext.Array.each(request_keys, function(key){
-                    console.log(key);
                     if (Rally.technicalservices.TSRequestedPermission.isValidPrefKey(key)){
-                        console.log('match',key);
                         requests.push(objs[0].get(key));
                     }
                 });
-                
                 this.down('#requested_permissions_box').removeAll();
                 this._createRequestedPermissionsGrid(requests);
             },
@@ -394,7 +390,7 @@ Ext.define('CustomApp', {
     },
     _getGridWidth: function(){
       //Set to just less than document.width
-        return 800;
+        return this.getWidth() - 100;
     },
     _createRequestedPermissionsStore: function(data){
         var store = Ext.create('Rally.data.custom.Store',{
@@ -407,26 +403,24 @@ Ext.define('CustomApp', {
     _createRequestedPermissionsGrid: function(data){
         
         var store = this._createRequestedPermissionsStore(data);
-        
         this.down('#requested_permissions_box').add({
             xtype: 'rallygrid',
             itemId: 'requested-permissions-grid',
             store: store,
             width: this._getGridWidth(), 
-            emptyText: 'No pending permission requests found for ' + this.getContext().getUser().UserName,
+            emptyText: this._getNoRequestedPermissionsMessage(),
             showPagingToolbar: false,
-            title: 'Pending Permission Requests for ' + this.getContext().getUser().UserName,
+            title: this._getRequestedPermissionsTitle(),
             columnCfgs: this._getRequestedPermissionColumns(),
             pagingToolbarCfg: {
                 store: store
             }
         });
     },
-    _getPlugins: function(){
-        return [
-          Ext.create('Ext.grid.plugin.CellEditing', {
-              clicksToEdit: 1
-          })
-      ];
-     }
+    _getNoRequestedPermissionsMessage: function(){
+        return 'No pending permission requests found for ' + this.getContext().getUser().UserName;
+    },
+    _getRequestedPermissionsTitle: function(){
+        return 'Pending Permission Requests for ' + this.getContext().getUser().UserName;
+    }
 });

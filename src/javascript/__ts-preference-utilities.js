@@ -30,7 +30,7 @@ Ext.define('Rally.technicalservices.util.PreferenceSaving',{
             scope: this,
             success: function(){
                 this.logger.log('preferences cleaned, now saving new ones');
-                this.save(prefs,workspace, appId,filterByUser,project).then({
+                this.save(prefs,workspace,appId,filterByUser,project).then({
                     scope: this,
                     success: function(){
                         deferred.resolve();
@@ -155,11 +155,10 @@ Ext.define('Rally.technicalservices.util.PreferenceSaving',{
         if (filterByUser == undefined) {filterByUser = false;}
         
         var deferred = Ext.create('Deft.Deferred');
-        console.log('start');
-        Rally.data.PreferenceManager.update({
+         Rally.data.PreferenceManager.update({
             appID: appId,
             project: project,
-            workspace: workspace,
+            workspace: workspace.Name,
             filterByUser: filterByUser,
             settings: prefs,
             scope: this, 
@@ -184,7 +183,8 @@ Ext.define('Rally.technicalservices.util.PreferenceSaving',{
             context: {workspace: workspace},
             sorters: [ { property: 'Name', direction: 'ASC' } ],
             autoLoad: true,
-            filters: [ { property: 'Name', operator: 'contains', value: key_part } ],
+            filters: [ { property: 'Name', operator: 'contains', value: key_part }, 
+                       { property: 'workspace', value: workspace}],
             listeners: {
                 scope: this, 
                 load: function(store,data,success) {
