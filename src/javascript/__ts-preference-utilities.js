@@ -86,16 +86,13 @@ Ext.define('Rally.technicalservices.util.PreferenceSaving',{
             pref = pref.substr(this.PREF_CHUNK_LEN);
         }
         pref_chunks.push(pref);
-        console.log('pref_chunks',pref_chunks);
         return pref_chunks;
     },
     _getObjectFromJSONChunks: function(json_chunks){
         var json_string = '';
         Ext.Array.each(json_chunks, function(chunk){
-            console.log(chunk);
             json_string += chunk;
         });
-        console.log(json_string);
         var obj = Ext.JSON.decode(json_string);
         return obj; 
     },
@@ -131,15 +128,11 @@ Ext.define('Rally.technicalservices.util.PreferenceSaving',{
                         json_chunks.get(key)[idx] = val;
                     } 
                 },this);
-                
-                console.log(json_chunks);
+
                 var objs = new Ext.util.HashMap();
                 json_chunks.each(function(key,value,length){
-                    console.log(key,value.length,length);
                     objs.add(key,this._getObjectFromJSONChunks(value));
                 },this);
-               // var obj = this._getObjectFromJSONChunks(json_chunks);
-                console.log('x',objs);
                 deferred.resolve([objs,last_updated]);
             },
             failure: function(error) {
@@ -158,7 +151,7 @@ Ext.define('Rally.technicalservices.util.PreferenceSaving',{
          Rally.data.PreferenceManager.update({
             appID: appId,
             project: project,
-            workspace: workspace.Name,
+            workspace: workspace,
             filterByUser: filterByUser,
             settings: prefs,
             scope: this, 
@@ -183,12 +176,11 @@ Ext.define('Rally.technicalservices.util.PreferenceSaving',{
             context: {workspace: workspace},
             sorters: [ { property: 'Name', direction: 'ASC' } ],
             autoLoad: true,
-            filters: [ { property: 'Name', operator: 'contains', value: key_part }, 
-                       { property: 'workspace', value: workspace}],
+            filters: [{ property: 'Name', operator: 'contains', value: key_part }],
             listeners: {
                 scope: this, 
                 load: function(store,data,success) {
-                    this.logger.log('_findPreferencesContainingKey load', success);
+                    this.logger.log('_findPreferencesContainingKey load', success, data);
                     if (success) {
                         deferred.resolve(data);
                     } else {

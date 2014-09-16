@@ -3,11 +3,11 @@
 <head>
     <title>permissions-user-request</title>
     <!--  (c) 2014 Rally Software Development Corp.  All Rights Reserved. -->
-    <!--  Build Date: Tue Sep 16 2014 00:23:54 GMT-0600 (MDT) -->
+    <!--  Build Date: Tue Sep 16 2014 01:03:45 GMT-0600 (MDT) -->
     
     <script type="text/javascript">
-        var APP_BUILD_DATE = "Tue Sep 16 2014 00:23:54 GMT-0600 (MDT)";
-        var CHECKSUM = 27246269736;
+        var APP_BUILD_DATE = "Tue Sep 16 2014 01:03:45 GMT-0600 (MDT)";
+        var CHECKSUM = 26595715427;
     </script>
     
     <script type="text/javascript" src="/apps/2.0rc3/sdk.js"></script>
@@ -124,16 +124,13 @@ Ext.define('Rally.technicalservices.util.PreferenceSaving',{
             pref = pref.substr(this.PREF_CHUNK_LEN);
         }
         pref_chunks.push(pref);
-        console.log('pref_chunks',pref_chunks);
         return pref_chunks;
     },
     _getObjectFromJSONChunks: function(json_chunks){
         var json_string = '';
         Ext.Array.each(json_chunks, function(chunk){
-            console.log(chunk);
             json_string += chunk;
         });
-        console.log(json_string);
         var obj = Ext.JSON.decode(json_string);
         return obj; 
     },
@@ -169,15 +166,11 @@ Ext.define('Rally.technicalservices.util.PreferenceSaving',{
                         json_chunks.get(key)[idx] = val;
                     } 
                 },this);
-                
-                console.log(json_chunks);
+
                 var objs = new Ext.util.HashMap();
                 json_chunks.each(function(key,value,length){
-                    console.log(key,value.length,length);
                     objs.add(key,this._getObjectFromJSONChunks(value));
                 },this);
-               // var obj = this._getObjectFromJSONChunks(json_chunks);
-                console.log('x',objs);
                 deferred.resolve([objs,last_updated]);
             },
             failure: function(error) {
@@ -196,7 +189,7 @@ Ext.define('Rally.technicalservices.util.PreferenceSaving',{
          Rally.data.PreferenceManager.update({
             appID: appId,
             project: project,
-            workspace: workspace.Name,
+            workspace: workspace,
             filterByUser: filterByUser,
             settings: prefs,
             scope: this, 
@@ -221,12 +214,11 @@ Ext.define('Rally.technicalservices.util.PreferenceSaving',{
             context: {workspace: workspace},
             sorters: [ { property: 'Name', direction: 'ASC' } ],
             autoLoad: true,
-            filters: [ { property: 'Name', operator: 'contains', value: key_part }, 
-                       { property: 'workspace', value: workspace}],
+            filters: [{ property: 'Name', operator: 'contains', value: key_part }],
             listeners: {
                 scope: this, 
                 load: function(store,data,success) {
-                    this.logger.log('_findPreferencesContainingKey load', success);
+                    this.logger.log('_findPreferencesContainingKey load', success, data);
                     if (success) {
                         deferred.resolve(data);
                     } else {
@@ -511,7 +503,7 @@ Ext.define('Rally.technicalservices.TSRequestedPermission',{
             return wksp_id.toString() + PREF_PREFIX_USER;
         },
         getUserPrefKey: function(wksp_id, userid){
-            return wksp_id + this.PREF_PREFIX_USER + userid + '.';
+            return this.getPrefPrefixUser(wksp_id) + userid.toString() + '.';
         },
         isValidPrefKey: function(pref_key){
             var regex = new RegExp(this.getPrefPrefixUser('').replace('.','\.') + '([0-9]+)\.project\.([0-9]+)', 'i');
@@ -735,7 +727,6 @@ Ext.define('CustomApp', {
             if (val.length > 1 && !Ext.Array.contains(search_terms, val)){
                 search_terms.push(val);
                 var tokens = val.match(/\S+/g);
-                console.log(tokens, tokens.length);
                 if (tokens.length > 1){
                     search_terms = _.union(search_terms,tokens);
                 }
@@ -769,7 +760,6 @@ Ext.define('CustomApp', {
         var search_regex = new RegExp(search_term,'gi');
         search_results = []; 
         root.cascadeBy(function(n){
-            console.log(n.get('Name'));
             var match_term = n.get(search_field); 
             if (search_field == 'Name'){
                 match_term = n.getPath(search_field)
@@ -890,13 +880,11 @@ Ext.define('CustomApp', {
         });
 
     },
-    _refreshRequestedPermissions: function(user_pref_key){
+    _refreshRequestedPermissions: function(){
         this.logger.log('_refreshRequestedPermissions');
-
-        if (user_pref_key == undefined){
-            var userid = this.getContext().getUser().ObjectID;
-            user_pref_key = Rally.technicalservices.TSRequestedPermission.getUserPrefKey(userid);
-        }
+        var wksp_id = this.getContext().getWorkspace().ObjectID;
+        var userid = this.getContext().getUser().ObjectID;
+        user_pref_key = Rally.technicalservices.TSRequestedPermission.getUserPrefKey(wksp_id,userid);
 
         var obj = Rally.technicalservices.util.PreferenceSaving.fetchFromJSON(user_pref_key, this.getContext().getWorkspaceRef()).then({
             scope: this,

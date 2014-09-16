@@ -207,7 +207,6 @@ Ext.define('CustomApp', {
             if (val.length > 1 && !Ext.Array.contains(search_terms, val)){
                 search_terms.push(val);
                 var tokens = val.match(/\S+/g);
-                console.log(tokens, tokens.length);
                 if (tokens.length > 1){
                     search_terms = _.union(search_terms,tokens);
                 }
@@ -241,7 +240,6 @@ Ext.define('CustomApp', {
         var search_regex = new RegExp(search_term,'gi');
         search_results = []; 
         root.cascadeBy(function(n){
-            console.log(n.get('Name'));
             var match_term = n.get(search_field); 
             if (search_field == 'Name'){
                 match_term = n.getPath(search_field)
@@ -362,13 +360,11 @@ Ext.define('CustomApp', {
         });
 
     },
-    _refreshRequestedPermissions: function(user_pref_key){
+    _refreshRequestedPermissions: function(){
         this.logger.log('_refreshRequestedPermissions');
-
-        if (user_pref_key == undefined){
-            var userid = this.getContext().getUser().ObjectID;
-            user_pref_key = Rally.technicalservices.TSRequestedPermission.getUserPrefKey(userid);
-        }
+        var wksp_id = this.getContext().getWorkspace().ObjectID;
+        var userid = this.getContext().getUser().ObjectID;
+        user_pref_key = Rally.technicalservices.TSRequestedPermission.getUserPrefKey(wksp_id,userid);
 
         var obj = Rally.technicalservices.util.PreferenceSaving.fetchFromJSON(user_pref_key, this.getContext().getWorkspaceRef()).then({
             scope: this,

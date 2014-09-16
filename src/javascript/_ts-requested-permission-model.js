@@ -21,7 +21,7 @@ Ext.define('Rally.technicalservices.TSRequestedPermission',{
             return wksp_id.toString() + PREF_PREFIX_USER;
         },
         getUserPrefKey: function(wksp_id, userid){
-            return wksp_id + this.PREF_PREFIX_USER + userid + '.';
+            return this.getPrefPrefixUser(wksp_id) + userid.toString() + '.';
         },
         isValidPrefKey: function(pref_key){
             var regex = new RegExp(this.getPrefPrefixUser('').replace('.','\.') + '([0-9]+)\.project\.([0-9]+)', 'i');
