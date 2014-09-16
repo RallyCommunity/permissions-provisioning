@@ -166,6 +166,7 @@ Ext.define('CustomApp', {
         rec.get('team_member')
         var user = this.getContext().getUser();
         var wksp_id = this.getContext().getWorkspace().ObjectID;
+        var project = this.getContext().getProjectRef();
         var permission = Ext.create('Rally.technicalservices.TSRequestedPermission');
         permission.set('projectid',rec.get('projectid'));
         permission.set('projectpath',rec.get('projectpath'))
@@ -173,7 +174,7 @@ Ext.define('CustomApp', {
         permission.set('username',user.UserName);
         permission.set('permission',type);
         permission.set('team_member', rec.get('team_member'));
-        Rally.technicalservices.util.PreferenceSaving.saveAsJSON(permission.getPrefKey(wksp_id), permission.getPrefValue(), me.getContext().getWorkspaceRef()).then({
+        Rally.technicalservices.util.PreferenceSaving.saveAsJSON(permission.getPrefKey(wksp_id), permission.getPrefValue(), me.getContext().getWorkspaceRef(),undefined,true).then({
             scope: this,
             success: function(){
                 Rally.ui.notify.Notifier.show({message: type + ' permission submitted for ' + user.UserName + ' for project' + rec.get('projectpath')});
@@ -348,8 +349,9 @@ Ext.define('CustomApp', {
     _deleteRequestedPermission: function(grid,row,col){
         var perm = grid.getStore().getAt(row);
         var wksp_id = this.getContext().getWorkspace().ObjectID;
+       // var project_ref = this.getContext().getProjectRef();
         this.logger.log('_deleteRequestedPermission:', perm);
-        Rally.technicalservices.util.PreferenceSaving._cleanPrefs(perm.getPrefKey(wksp_id),this.getContext().getWorkspaceRef()).then({
+        Rally.technicalservices.util.PreferenceSaving._cleanPrefs(perm.getPrefKey(wksp_id),this.getContext().getWorkspaceRef(),undefined,true).then({
             scope:this,
             success: function(){
                 this._refreshRequestedPermissions();
@@ -364,9 +366,10 @@ Ext.define('CustomApp', {
         this.logger.log('_refreshRequestedPermissions');
         var wksp_id = this.getContext().getWorkspace().ObjectID;
         var userid = this.getContext().getUser().ObjectID;
+   //     var project = this.getContext().getProjectRef();
         user_pref_key = Rally.technicalservices.TSRequestedPermission.getUserPrefKey(wksp_id,userid);
 
-        var obj = Rally.technicalservices.util.PreferenceSaving.fetchFromJSON(user_pref_key, this.getContext().getWorkspaceRef()).then({
+        var obj = Rally.technicalservices.util.PreferenceSaving.fetchFromJSON(user_pref_key, this.getContext().getWorkspaceRef(),undefined,true).then({
             scope: this,
             success: function(objs){
                 var request_keys = objs[0].getKeys();
