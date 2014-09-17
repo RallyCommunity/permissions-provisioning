@@ -1,69 +1,51 @@
-#permissions-user-request
+#Permissions Provisioning Apps
+===============================
 
-## Development Notes
+##Overview
+The permissions provisioning User app allows users with limited permissions to search for projects and submit permission requests for selected projects.  
 
-### First Load
+The permissions provisioning Admin app serves 2 functions:
+(1) To build and store the project name tree for a user with limited permissions to search and select projects from.  
+(2) To view user requests for project permissions and delete them once the request has been fulfilled.  
 
-If you've just downloaded this from github and you want to do development, 
-you're going to need to have these installed:
+####Example Workflow Scenario:
+* Admin App is installed in the workspace on a dashboard for Rally administrators. 
+* Administrators generate the project tree for the first time by clicking the "Refresh Projects" button.
 
- * node.js
- * grunt-cli
- * grunt-init
+* The User App is installed and shared with a project in the workspace by an Administrator.
+* New rally user is given limited access to the project where the User app.  
+* The user app will show users they're pending permission requests, if they have not been cleared by an administrator.
  
-Since you're getting this from github, we assume you have the command line
-version of git also installed.  If not, go get git.
 
-If you have those three installed, just type this in the root directory here
-to get set up to develop:
+* New rally user logs in to rally and searches for the projects that they need access to.  Users can search for a project by project name (includes any name in the project's path and will include hits on parent project names) or project owner first name, last name or email address.  Auto complete on whole words can help guide users search term choices.
 
-  npm install
 
-### Structure
+* New Rally User submits permission requests by selecting whether or not the user would like to be a team member and clicking the button for the desired project permission (Admin, Editor, Viewer)
 
-  * src/javascript:  All the JS files saved here will be compiled into the 
-  target html file
-  * src/style: All of the stylesheets saved here will be compiled into the 
-  target html file
-  * test/fast: Fast jasmine tests go here.  There should also be a helper 
-  file that is loaded first for creating mocks and doing other shortcuts
-  (fastHelper.js) **Tests should be in a file named <something>-spec.js**
-  * test/slow: Slow jasmine tests go here.  There should also be a helper
-  file that is loaded first for creating mocks and doing other shortcuts 
-  (slowHelper.js) **Tests should be in a file named <something>-spec.js**
-  * templates: This is where templates that are used to create the production
-  and debug html files live.  The advantage of using these templates is that
-  you can configure the behavior of the html around the JS.
-  * config.json: This file contains the configuration settings necessary to
-  create the debug and production html files.  Server is only used for debug,
-  name, className and sdk are used for both.
-  * package.json: This file lists the dependencies for grunt
-  * auth.json: This file should NOT be checked in.  Create this to run the
-  slow test specs.  It should look like:
-    {
-        "username":"you@company.com",
-        "password":"secret"
-    }
-  
-### Usage of the grunt file
-####Tasks
-    
-##### grunt debug
 
-Use grunt debug to create the debug html file.  You only need to run this when you have added new files to
-the src directories.
+* Administrators see the permission requests, including the Full project path, when they refresh the Admin App.  
 
-##### grunt build
+* Administrators click on the link to the user to edit the user
+* Administator applies the appropriate permission
+* Administrator removes the permission request from the Admin App once the permission request has been fulfilled.  
 
-Use grunt build to create the production html file.  We still have to copy the html file to a panel to test.
 
-##### grunt test-fast
+## Requirements
+For users with limited permissions to use the User permissions provisioning app, the User needs, at minimum, Viewer permission for the project that the App is shared with in order to search the project name tree and submit permission requests.  
 
-Use grunt test-fast to run the Jasmine tests in the fast directory.  Typically, the tests in the fast 
-directory are more pure unit tests and do not need to connect to Rally.
+Users running the Admin app require workspace admin permission, at minimum, to build and store the project name tree and also to view and remove user permission requests.  
 
-##### grunt test-slow
 
-Use grunt test-slow to run the Jasmine tests in the slow directory.  Typically, the tests in the slow
-directory are more like integration tests in that they require connecting to Rally and interacting with
-data.
+## Take Note
+The project tree must be regenerated manually periodically to keep the project structure up to date.  The rate at which it should be regenerated depends on how often projects are added, deleted or modified in the workspace.  Both the User App and the Admin app will display timestamps that indicate the last time that the project tree was built.  
+
+For workspaces with extremely large number of projects, it may take several minutes for the project tree to be saved the first time.  If the User App is spinning for several minutes during load, that may be an indication that the project tree has not completed saving yet. Try rebuilding the project tree (using the Admin App) and waiting several minutes (~5 per 2000 projects) before using the User application again.
+
+The Admin app and User app should be installed in the same workspace.
+
+Users with limited permissions should not have access to or try to use the Admin App. 
+
+Searches for projects should be specific enough to limit results to a reasonable number, since there is not paging in the search results.  The project data is local so the search results are returned quickly, but the app will get sluggish if it needs to render more than 500-1000 search results at a time.  
+
+## License
+The permissions provisioning apps are released "as-is" under the MIT License.  Please see the <a href="/master/LICENSE">LICENSE</a> file for full text.  
