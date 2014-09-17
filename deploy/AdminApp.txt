@@ -1,13 +1,13 @@
 <!DOCTYPE html>
 <html>
 <head>
-    <title>permissions-user-request</title>
+    <title>admin-permissions-provisioning</title>
     <!--  (c) 2014 Rally Software Development Corp.  All Rights Reserved. -->
-    <!--  Build Date: Tue Sep 16 2014 01:52:53 GMT-0600 (MDT) -->
+    <!--  Build Date: Tue Sep 16 2014 21:16:55 GMT-0600 (MDT) -->
     
     <script type="text/javascript">
-        var APP_BUILD_DATE = "Tue Sep 16 2014 01:52:53 GMT-0600 (MDT)";
-        var CHECKSUM = 27017683972;
+        var APP_BUILD_DATE = "Tue Sep 16 2014 21:16:55 GMT-0600 (MDT)";
+        var CHECKSUM = 18901257030;
     </script>
     
     <script type="text/javascript" src="/apps/2.0rc3/sdk.js"></script>
@@ -39,7 +39,36 @@ Ext.define('Rally.technicalservices.Logger',{
 Ext.define('Rally.technicalservices.util.PreferenceSaving',{
     singleton: true,
     logger: new Rally.technicalservices.Logger(),
-    PREF_CHUNK_LEN: 999,
+    PREF_CHUNK_LEN: 30000,
+    findKeysAndCreateDate: function(prefix, workspace){
+        this.logger.log( "findKeysAndLastModified", prefix );
+        var deferred = Ext.create('Deft.Deferred');
+        Ext.create('Rally.data.wsapi.Store', {
+            model: 'Preference',
+            fetch: ['Name','CreationDate'],
+            limit: 'Infinity',
+            context: {workspace: workspace},
+            sorters: [ { property: 'Name', direction: 'ASC' } ],
+            autoLoad: true,
+            filters: [ { property: 'Name', operator: 'contains', value: prefix } ],
+            listeners: {
+                scope: this, 
+                load: function(store,data,success) {
+                    this.logger.log('findKeysAndLastModified load', success);
+                    if (success) {
+                        var pref_keys = {};
+                        Ext.each(data, function(rec){
+                            pref_keys[rec.get('Name')] = rec.get('CreationDate');
+                        });
+                        deferred.resolve(pref_keys);
+                    } else {
+                        deferred.reject();
+                    }
+                }
+            }
+        });
+        return deferred.promise;        
+    },
     saveAsJSON: function(name, object, workspace, appId, filterByUser, project){
         /*
          * This function does the following:
@@ -68,7 +97,7 @@ Ext.define('Rally.technicalservices.util.PreferenceSaving',{
             scope: this,
             success: function(){
                 this.logger.log('preferences cleaned, now saving new ones');
-                this.save(prefs,workspace,appId,filterByUser,project).then({
+                this.save(prefs,workspace, appId,filterByUser,project).then({
                     scope: this,
                     success: function(){
                         deferred.resolve();
@@ -84,9 +113,6 @@ Ext.define('Rally.technicalservices.util.PreferenceSaving',{
             }
         });
         return deferred.promise; 
-    },
-    removePref: function(prefix, workspace,appId, filterByUser,project){
-        this._cleanPrefs(prefix, workspace,appId,filterByUser,project);
     },
     _cleanPrefs: function(prefix,workspace, appId,filterByUser,project){
         this.logger.log('_cleanPrefs');
@@ -166,11 +192,12 @@ Ext.define('Rally.technicalservices.util.PreferenceSaving',{
                         json_chunks.get(key)[idx] = val;
                     } 
                 },this);
-
+                
                 var objs = new Ext.util.HashMap();
                 json_chunks.each(function(key,value,length){
                     objs.add(key,this._getObjectFromJSONChunks(value));
                 },this);
+
                 deferred.resolve([objs,last_updated]);
             },
             failure: function(error) {
@@ -186,7 +213,8 @@ Ext.define('Rally.technicalservices.util.PreferenceSaving',{
         if (filterByUser == undefined) {filterByUser = false;}
         
         var deferred = Ext.create('Deft.Deferred');
-         Rally.data.PreferenceManager.update({
+        
+        Rally.data.PreferenceManager.update({
             appID: appId,
             project: project,
             workspace: workspace,
@@ -214,15 +242,15 @@ Ext.define('Rally.technicalservices.util.PreferenceSaving',{
             context: {workspace: workspace},
             sorters: [ { property: 'Name', direction: 'ASC' } ],
             autoLoad: true,
-            filters: [{ property: 'Name', operator: 'contains', value: key_part }],
+            filters: [ { property: 'Name', operator: 'contains', value: key_part } ],
             listeners: {
                 scope: this, 
                 load: function(store,data,success) {
-                    this.logger.log('_findPreferencesContainingKey load', success, data);
+                    this.logger.log('_findPreferencesContainingKey load', success);
                     if (success) {
                         deferred.resolve(data);
                     } else {
-                        deferred.reject('Error creating wsapi Store');
+                        deferred.reject('Error loading WSAPI store.');
                     }
                 }
             }
@@ -256,9 +284,13 @@ Ext.define('Rally.technicalservices.util.PreferenceSaving',{
         });
         return deferred.promise;
     }
-   
-
 });
+/*
+ * A series of utilities to help construct trees
+ * with data gotten bottom or middle-up
+ * 
+ */
+ 
 Ext.define('Rally.technicalservices.util.TreeBuilding', {
     singleton: true,
     logger: new Rally.technicalservices.Logger(),
@@ -279,7 +311,6 @@ Ext.define('Rally.technicalservices.util.TreeBuilding', {
             } else {
                 
                 var parent_oid =  direct_parent.ObjectID || direct_parent.get('ObjectID');
-                console.log('parent_oid',parent_oid);
                 if (!item_hash[parent_oid]) {
                     this.logger.log("Saved parent missing: ", parent_oid);
                     if ( !Ext.Array.contains(root_array,item) ) {
@@ -287,7 +318,6 @@ Ext.define('Rally.technicalservices.util.TreeBuilding', {
                     }
                 } else {
                     var parent = item_hash[parent_oid];
-                    console.log('children',parent.get('children'));
                     if ( !parent.get('children') ) { parent.set('children',[]); }
                     var kids = parent.get('children');
                     kids.push(item);
@@ -346,6 +376,9 @@ Ext.define('Rally.technicalservices.util.TreeBuilding', {
                 var model_as_hash = this._transformModelToHash(model, fields);
                 // children & parent are fields that are not a 
                 // part of the model def'n so getData doesn't provide them
+                if (model.get('ObjectID')){
+                    model_as_hash.id = model.get('ObjectID');
+                }
                 if ( model.get('children') ) {
                     model_as_hash.children = this.convertModelsToHashesLimitFields(model.get('children'),fields);
                 }
@@ -523,26 +556,25 @@ Ext.define('CustomApp', {
     componentCls: 'app',
     logger: new Rally.technicalservices.Logger(),
     PREF_NAME: 'permissions.provisioning.projecttree',
-    USER_PREF_PREFIX: 'permissions.provisioning.user.',
-    filter_string: '',
+    USER_PREF_NAME: 'permissions.provisioning.user',
     items: [
-        {xtype: 'container', itemId: 'requested_permissions_box', layout: 'vbox', padding: 10},
-        {xtype:'container',itemId:'display_box', padding: 10},
-        {xtype: 'container', itemId: 'search_box', layout: 'hbox'},
-        {xtype: 'container', itemId: 'search_results_box'},
+        {xtype:'container',itemId:'display_box', layout: 'hbox', padding: 25},
+        {xtype:'container',itemId: 'requested_permissions_box'},
         {xtype:'tsinfolink'}
     ],
     launch: function() {
-        //Get the project tree.  If we don't have this, then this app is useless!  
-        var me = this;
-        this.setLoading({msg: 'Loading Project Tree...'});
-        Rally.technicalservices.util.PreferenceSaving.fetchFromJSON(this._getPrefName(), this.getContext().getWorkspaceRef()).then({
-            scope: this, 
-            success: this._addAppComponents,
-            failure: this._notifyUserOfError
-        }).always(function(){
-            me.setLoading(false);
+        this.down('#display_box').add({
+            itemId: 'button_build_projects',
+            xtype: 'button',
+            text: 'Refresh Projects',
+            scope: this,
+            margin: 10,
+            handler: this._refreshProjectTreePreferences
         });
+        
+        this._updateProjectTreeStatus();
+
+        this._createPendingPermissionsGrid();
     },
     _getPrefName: function(){
         var wksp_id = this.getContext().getWorkspace().ObjectID;
@@ -550,22 +582,189 @@ Ext.define('CustomApp', {
     },
     _getUserPrefName: function(){
         var wksp_id = this.getContext().getWorkspace().ObjectID;
-        return wksp_id.toString() + this.USER_PREF_PREFIX;  
+        return wksp_id.toString() + this.USER_PREF_NAME;  
     },
-    _addAppComponents: function(obj){
-        //TODO: Handle the case where there is no project tree.  
-        this.logger.log('_addAppComponents', obj);
-        var tree_obj = obj[0].get(this._getPrefName());
-        var last_updated = obj[1].get(this._getPrefName());
-        this.logger.log('_addAppComponents',obj, tree_obj,last_updated);
+    _getRequestedPermissionColumns: function(){
+        this.logger.log('_getRequestedPermissionColumns');
+       
+        var columns = [{ //username
+                text: 'UserName',
+                dataIndex: 'username',
+                renderer: function(value, metaData, record){
+                    return '<a href="/slm/user/edit.sp?oid=' + record.get('userid') + '" target="_blank">' + value + '</a>'; 
+                } 
+            },{//project 
+                text: 'Project Path',
+                dataIndex: 'projectpath',
+                flex: 1
+            },{
+              text: 'Team Member?',
+              dataIndex: 'team_member',
+              renderer: function(v){
+                  if (v) {return 'Yes';}
+                  return 'No';
+              }
+            },{//Permission
+                dataIndex: 'permission',
+                text: 'Requested Permission',
+            },{ //Action Column (dismiss)
+                        scope: this,
+                        xtype:'actioncolumn',
+                        items: [{
+                            icon: '/slm/images/icon_delete.gif',
+                            tooltip: 'Dismiss',
+                            scope: this,
+                            handler: this._dismissRequest
+                        }],
+            }];
+        return columns;        
+    },
+    
+    _dismissRequest: function(grid, row_index, col_index){
+        var perm = grid.getStore().getAt(row_index);
+        var wksp_id = this.getContext().getWorkspace().ObjectID;
+        this.logger.log('_dismissRequest:', perm, this);
+        Rally.technicalservices.util.PreferenceSaving._cleanPrefs(perm.getPrefKey(wksp_id),this.getContext().getWorkspaceRef()).then({
+            scope:this,
+            success: function(){
+                this._createPendingPermissionsGrid();
+            },
+            failure: function(error){
+                alert(error);
+            }
+        });
+    },
+       _createPendingPermissionsGrid: function(){
+           if (this.down('#requested-permissions-grid')){
+               this.down('#requested-permissions-grid').destroy();
+           }
+           
+           this._createPendingPermissionsStore().then({
+            scope: this,
+            success: function(store){
+                this.down('#requested_permissions_box').add({
+                    xtype:'rallygrid',
+                    itemId: 'requested-permissions-grid',
+                    title: 'Pending User Project Permission Requests',
+                    store: store,
+                    scope: this,
+                    columnCfgs: this._getRequestedPermissionColumns(),
+                    showPagingToolbar: false,
+                    width: 800
+                    
+                });
+            },
+            failure: function(error){
+                alert(error);
+            }
+        });
+    },
+    _createPendingPermissionsStore: function(){
+        var workspace = this.getContext().getWorkspaceRef();
+        var wksp_id = this.getContext().getWorkspace().ObjectID;
+        var deferred = Ext.create('Deft.Deferred');
         
-        
-        //Create the internal project tree that we will search  
-        this.project_selector = this._createTreeStore(this._getProjectTreeModelFields(),'TSProjectTreeStore',tree_obj);
-        
-        this._refreshRequestedPermissions(); // creates the grid where we will display the permissions requested by the user
-        
-        var html ='To request permissions, search for the project (by Project Name or Project Owner) for which you would like permissions and request either Viewer, Editor or Administrator permissions.';
+        Rally.technicalservices.util.PreferenceSaving.fetchFromJSON(Rally.technicalservices.TSRequestedPermission.getPrefPrefixUser(wksp_id),workspace).then({
+            scope: this,
+            success: function(obj){
+                var requests = obj[0].getKeys();
+                var data = [];
+                Ext.each(requests, function(req_key){
+                   if (Rally.technicalservices.TSRequestedPermission.isValidPrefKey(req_key)){
+                       data.push(obj[0].get(req_key));
+                   }
+                }, this);
+
+                var store = Ext.create('Rally.data.custom.Store',{
+                    model: 'Rally.technicalservices.TSRequestedPermission',
+                    data: data,
+                    limit: 'infinity'
+                });
+                deferred.resolve(store);
+            },
+            failure: function(error){
+                deferred.reject(error);
+            }
+        });
+        return deferred.promise; 
+    },
+    _refreshProjectTreePreferences: function(){
+        var me = this; 
+        this.down('#button_build_projects').setDisabled(true);
+        this.down('#display_box').setLoading({msg: 'Generating Project tree...'})
+        var workspace = this.getContext().getWorkspaceRef();
+        this._fetchProjectTree().then({
+            scope: this,
+            success: function(tree){
+                Rally.technicalservices.util.PreferenceSaving.saveAsJSON(this._getPrefName(),tree,workspace).then({
+                    scope: this,
+                    success: function(){
+                        Rally.ui.notify.Notifier.show({message: 'Project Tree Saved.'});
+                    },
+                    failure: function(error){
+                        Rally.ui.notify.Notifier.showError({message: error});
+                    }
+                });
+            },
+            failure: function(error){
+                Rally.ui.notify.Notifier.showError({message: error});
+           }
+        }).always(function(){
+            me.down('#display_box').setLoading(false);
+            me.down('#button_build_projects').setDisabled(false);
+            me._updateProjectTreeStatus(true);
+        });
+         
+    },
+    _fetchProjectTree: function(){
+        var deferred = Ext.create('Deft.Deferred');
+        var store = Ext.create('Rally.data.wsapi.Store',{
+            model: 'Project',
+            fetch: ['Name','ObjectID','Parent','Children','Owner','FirstName','LastName','EmailAddress'],
+            limit: Infinity,
+            autoLoad: true,
+            context: {project: null},
+            listeners: {
+                scope: this, 
+                load: function(store, records, successful){
+                    this.logger.log('_fetchProjectTree success', successful);
+                    if (successful){
+                        var fields = ['Name','Owner'];
+                        var flattened_project_hash = this._createProjectModelHash(records);  
+                        var project_tree = Rally.technicalservices.util.TreeBuilding.constructRootItems(flattened_project_hash);
+                        var project_tree_hash = Rally.technicalservices.util.TreeBuilding.convertModelsToHashesLimitFields(project_tree, fields);
+                        deferred.resolve(project_tree_hash);
+                    } else {
+                        deferred.reject('Error loading projects');
+                    }
+                }
+            }
+       });
+       return deferred.promise;
+    },
+    _createProjectModelHash: function(records){
+        var project_hash = {};
+        Ext.Array.each(records, function(rec){
+            var parent = rec.get('Parent');
+            rec.set('parent',parent);
+            project_hash[rec.get('ObjectID')] = rec;
+            var owner_obj = rec.get('Owner');
+            var owner = '';
+            if (owner_obj){
+                if (owner_obj.FirstName){
+                    owner += owner_obj.FirstName + ' ';
+                }
+                if (owner_obj.LastName){
+                    owner += owner_obj.LastName + ' ';
+                }
+                owner += owner_obj.EmailAddress;
+            }
+            rec.set('Owner',owner);
+         }, this);
+        return project_hash;
+    },  
+    _updateProjectTreeStatus: function(just_updated){
+        var html ='';
         if (this.down('#text-area-project-tree-status')){
             this.down('#text-area-project-tree-status').destroy();
         }
@@ -575,377 +774,39 @@ Ext.define('CustomApp', {
             html: html
         });
         var me = this; 
-        if (last_updated){
-            html = html + '\n\nThe available project list was last updated on ' + last_updated + '.';
-            this._createSearchBox();  //Sets up the components for searching by project name or owner
+        if (just_updated){
+            html = '';
+            status.update(html);
         } else {
-            html = 'The project tree has not yet been created.  Please contact your Rally Administrator to generate the list of available projects.';
-            var cls = 'cls-error';
-            status.addCls(cls); 
-        }
-        status.update(html);
-        
-
-    },
-    _createSearchResults: function(results){
-        this.down('#search_results_box').removeAll();
-        
-        var store = Ext.create('Ext.data.Store',{
-            fields: ['projectpath','projectid','owner'],
-            limit: 'infinity',
-            pageSize: 10,
-            data: results
-        });
-        this.down('#search_results_box').add({
-            xtype: 'rallygrid',
-            itemId: 'search-results-grid',
-            store: store,
-          //  selType: 'rowmodel',
-          //  plugins: this._getPlugins(),
-            width: 800,  //Set to just less than document.width
-            columnCfgs: this._getSearchResultsColumns(),
-            showPagingToolbar: true,
-            pagingToolbarCfg: {
-                pageSizes: [10, 50, 100, 200],
-                store: store,
-            }
-        });
-    },
-    _getSearchResultsColumns: function(){
-        this.logger.log('_getSearchResultsColumns');
-        var me = this;
-        var permission_types = ['Viewer','Editor','Admin'];
-        var columns = [{
-                text:'Project Path', 
-                dataIndex:'projectpath', 
-                flex: 1
-        },{
-            text:'Project Owner', 
-            dataIndex:'owner', 
-        },{
-            text: 'Team Member?',
-            dataIndex: 'team_member',
-            xtype: 'checkcolumn'    
-        },{
-            width: 75,   
-            renderer: function (v, m, rec, row, col) {
-                var id = Ext.id();
-                Ext.defer(function () {
-                    Ext.widget('button', {
-                        renderTo: id,
-                        text: 'Viewer',
-                        scope: this,
-                        cls: 'request-button',
-                        handler: function () {
-                            me._addRequestedPermission(rec, row, 'Viewer', me);
-                        }
-                    });
-                }, 50, this);
-            return Ext.String.format('<div id="{0}"></div>', id);
-            }
-        },{
-            width: 75,    
-            renderer: function (v, m, rec, row, col) {
-                    var id = Ext.id();
-                    Ext.defer(function () {
-                        Ext.widget('button', {
-                            renderTo: id,
-                            text: 'Editor',
-                            scope: this,
-                            cls: 'request-button',
-                            handler: function () {
-                                me._addRequestedPermission(rec, row, 'Editor', me);
-                            }
-                        });
-                    }, 50, this);
-                return Ext.String.format('<div id="{0}"></div>', id);
-                }
-        },{
-            width: 75,    
-                    renderer: function (v, m, rec, row, col) {
-                        var id = Ext.id();
-                        Ext.defer(function () {
-                            Ext.widget('button', {
-                                renderTo: id,
-                                text: 'Admin',
-                                scope: this,
-                                cls: 'request-button',
-                                handler: function () {
-                                    me._addRequestedPermission(rec, row, 'Admin', me);
-                                }
-                            });
-                        }, 50, this);
-                    return Ext.String.format('<div id="{0}"></div>', id);
-                    }
-                }];
-        return columns;        
-    },
-
-    _addRequestedPermission: function(rec, row,type, me){
-        me.logger.log('_addRequestedPermission', row, type);
-        rec.get('team_member')
-        var user = this.getContext().getUser();
-        var wksp_id = this.getContext().getWorkspace().ObjectID;
-        var project = this.getContext().getProjectRef();
-        var permission = Ext.create('Rally.technicalservices.TSRequestedPermission');
-        permission.set('projectid',rec.get('projectid'));
-        permission.set('projectpath',rec.get('projectpath'))
-        permission.set('userid',user.ObjectID);
-        permission.set('username',user.UserName);
-        permission.set('permission',type);
-        permission.set('team_member', rec.get('team_member'));
-        Rally.technicalservices.util.PreferenceSaving.saveAsJSON(permission.getPrefKey(wksp_id), permission.getPrefValue(), me.getContext().getWorkspaceRef(),undefined,true).then({
-            scope: this,
-            success: function(){
-                Rally.ui.notify.Notifier.show({message: type + ' permission submitted for ' + user.UserName + ' for project' + rec.get('projectpath')});
-                me._refreshRequestedPermissions();
-            },
-            failure: function(error){
-                me._notifyUserOfError(error);
-            }
-        });
-    },
-    _nofityUserOfError: function(error){
-        Rally.ui.notify.Notifier.showError({message: error});
-    },
-    /* 
-     * ProjectSelector:  The following functions are specific to the tree for searching for a project
-     */
-    _getProjectTreeModelFields: function(){
-        return [
-            {name: 'Name', type: 'String'},
-            {name: 'Owner', type: 'String'}
-        ];
-    },
-    _generateTypeAheadStore: function(search_field){
-        this.logger.log('_generateTypeAheadStore', search_field);
-        //generate an array of all project names
-        var search_terms = [];
-        var project_count = 0;
-        this.project_selector.getRootNode().cascadeBy(function(nd){
-            project_count++;
-            var val = nd.get(search_field);
-            if (val.length > 1 && !Ext.Array.contains(search_terms, val)){
-                search_terms.push(val);
-                var tokens = val.match(/\S+/g);
-                if (tokens.length > 1){
-                    search_terms = _.union(search_terms,tokens);
-                }
-            }
-            search_terms.sort();
-        });
-        this.logger.log('_generateTypeAheadStore END', project_count);
-        return search_terms;
-    },
-    _createTreeStore: function(model_fields, model_name, children){
-        var model = {
-                extend: 'Ext.data.Model',
-                fields: model_fields
-            };
-        Ext.define(model_name, model);        
-        
-        var tree_store = Ext.create('Ext.data.TreeStore',{
-            model: model_name,
-            root: {
-                expanded: false,
-                children: children
-                }
-        });
-        return tree_store;
-    },
-
-    _searchTree: function(){
-        var search_field = this.down('#search-by-combo').getValue();
-        var search_term = this.down('#search-combo').getValue();
-        var root = this.project_selector.getRootNode();
-        var search_regex = new RegExp(search_term,'gi');
-        search_results = []; 
-        root.cascadeBy(function(n){
-            var match_term = n.get(search_field); 
-            if (search_field == 'Name'){
-                match_term = n.getPath(search_field)
-            }
-            if (match_term.match(search_regex)){
-                var result = {};
-                result['projectpath'] = n.getPath('Name');
-                result['projectid'] = n.get('id');
-                result['owner'] = n.get('Owner');
-                search_results.push(result);
-            }
-            return true;
-        });
-        this._createSearchResults(search_results);
-    },
-    _addSearchWidgets: function(cb){
-        var search_field = cb.getValue();
-        var type_ahead_store = this._generateTypeAheadStore(search_field);
-        
-        if (this.down('#search-combo')){this.down('#search-combo').destroy();}
-        if (this.down('#search-button')){this.down('#search-button').destroy();}
-
-        this.down('#search_box').add({
-            xtype: 'combobox',
-            itemId: 'search-combo',
-            typeAhead: true,
-            store: type_ahead_store,
-            hideTrigger: true,
-            enableKeyEvents: true,
-            margin: 10,
-            minChars: 2,
-            width: 300
-        });
-        this.down('#search_box').add({
-            xtype: 'button',
-            itemId: 'search-button',
-            text: 'Search',
-            margin: 10,
-            scope: this,
-            handler: this._searchTree
-        });
-    },
-    _createSearchBox: function(){
-        this.logger.log ('_createSearchBox');
-        var search_store = Ext.create('Ext.data.Store', {
-            fields: ['display','field_name'],
-            data: [{display:'Project Name', field_name:'Name'},
-                   {display:'Owner Name or Email', field_name:'Owner'}]  //TODO if we want to search by otherfields, this is where we will set that up.  
-
-        });        
-        
-        this.down('#search_box').add({
-            xtype: 'combobox',
-            itemId: 'search-by-combo',
-            store: search_store,
-            displayField: 'display',
-            valueField: 'field_name',
-            margin: 10,
-            labelAlign: 'right',
-            fieldLabel: 'Search By',
-            forceSelection: true,
-            listeners: {
+            this.down('#display_box').setLoading(true);
+            Rally.technicalservices.util.PreferenceSaving.findKeysAndCreateDate(this._getPrefName(), this.getContext().getWorkspaceRef()).then({
                 scope: this,
-                change: function(cb) {
-                    this._addSearchWidgets(cb);
+                success: function(key_hash_map){
+                    if (Object.keys(key_hash_map).length>0){
+                        last_updated = _.values(key_hash_map)[0];
+                        html = 'The project tree was last updated on ' + last_updated;
+                    } else {
+                        html = 'The project tree has not yet been created.  Please click <b>Refresh Projects</b> to build the project tree for the user permissions provisioning app.';
+                        var cls = 'cls-error';
+                        status.addCls(cls); 
+                   }
+                },
+                failure: function(error){
+                    this.logger.log('findKeysAndCreateDate',error);
+                    html = 'Error creating the project tree structure: ' + error;
+                    var cls = 'cls-error';
+                    status.addCls(cls); 
                 }
-            }
-        });
-        this.down('#search-by-combo').setValue('Name');
-    },
-    /*
-     * RequestedPermissions:  The following functions are specific to the tree for requested permissions
-     */
-    _getRequestedPermissionColumns: function(){
-        this.logger.log('_getRequestedPermissionColumns');
-
-        var columns = [
-            { //Project Path 
-                text: 'Project Path',
-                dataIndex: 'projectpath',
-                flex: 1
-            },
-            { //Requested Permission
-                text: 'Requested Permission',
-                dataIndex: 'permission',
-            },{ //Team Member (True or False)
-                text: 'Team Member?',
-                dataIndex: 'team_member',
-                renderer: function(v){
-                    if (v) {
-                        return 'Yes';
-                    }
-                    return 'No';
-                }
-            },{ //Action Column
-                xtype:'actioncolumn',
-                items: [{
-                    icon: '/slm/images/icon_delete.gif',
-                    tooltip: 'Delete',
-                    scope: this,
-                    handler: this._deleteRequestedPermission
-                }]
-            }]
-        return columns;        
-    },
-    _deleteRequestedPermission: function(grid,row,col){
-        var perm = grid.getStore().getAt(row);
-        var wksp_id = this.getContext().getWorkspace().ObjectID;
-       // var project_ref = this.getContext().getProjectRef();
-        this.logger.log('_deleteRequestedPermission:', perm);
-        Rally.technicalservices.util.PreferenceSaving._cleanPrefs(perm.getPrefKey(wksp_id),this.getContext().getWorkspaceRef(),undefined,true).then({
-            scope:this,
-            success: function(){
-                this._refreshRequestedPermissions();
-            },
-            failure: function(error){
-                alert(error);
-            }
-        });
-
-    },
-    _refreshRequestedPermissions: function(){
-        this.logger.log('_refreshRequestedPermissions');
-        var wksp_id = this.getContext().getWorkspace().ObjectID;
-        var userid = this.getContext().getUser().ObjectID;
-   //     var project = this.getContext().getProjectRef();
-        user_pref_key = Rally.technicalservices.TSRequestedPermission.getUserPrefKey(wksp_id,userid);
-
-        var obj = Rally.technicalservices.util.PreferenceSaving.fetchFromJSON(user_pref_key, this.getContext().getWorkspaceRef(),undefined,true).then({
-            scope: this,
-            success: function(objs){
-                var request_keys = objs[0].getKeys();
-                var requests = [];
-                Ext.Array.each(request_keys, function(key){
-                    if (Rally.technicalservices.TSRequestedPermission.isValidPrefKey(key)){
-                        requests.push(objs[0].get(key));
-                    }
-                });
-                this.down('#requested_permissions_box').removeAll();
-                this._createRequestedPermissionsGrid(requests);
-            },
-            failure: function(error){
-                alert(error);
-            }
-        });
-    },
-    _getGridWidth: function(){
-      //Set to just less than document.width
-        return this.getWidth() - 100;
-    },
-    _createRequestedPermissionsStore: function(data){
-        var store = Ext.create('Rally.data.custom.Store',{
-            model: 'Rally.technicalservices.TSRequestedPermission',
-            limit: 'infinity',
-            data: data
-        });
-        return store;
-    },
-    _createRequestedPermissionsGrid: function(data){
-        
-        var store = this._createRequestedPermissionsStore(data);
-        this.down('#requested_permissions_box').add({
-            xtype: 'rallygrid',
-            itemId: 'requested-permissions-grid',
-            store: store,
-            width: this._getGridWidth(), 
-            emptyText: this._getNoRequestedPermissionsMessage(),
-            showPagingToolbar: false,
-            title: this._getRequestedPermissionsTitle(),
-            columnCfgs: this._getRequestedPermissionColumns(),
-            pagingToolbarCfg: {
-                store: store
-            }
-        });
-    },
-    _getNoRequestedPermissionsMessage: function(){
-        return 'No pending permission requests found for ' + this.getContext().getUser().UserName;
-    },
-    _getRequestedPermissionsTitle: function(){
-        return 'Pending Permission Requests for ' + this.getContext().getUser().UserName;
+            }).always(function(){
+                status.update(html);
+                me.down('#display_box').setLoading(false);
+            });
+        }
     }
 });
             
                Rally.launchApp('CustomApp', {
-                   name: 'permissions-user-request'
+                   name: 'admin-permissions-provisioning'
                });
         });
     </script>
@@ -968,9 +829,6 @@ Ext.define('CustomApp', {
     margin-top: 25px;
     margin-right: 5px;
     cursor: pointer;
-},
-highlighted {
-	background: #00FF00'
 }
 .cls-error{
     color: #FF0000

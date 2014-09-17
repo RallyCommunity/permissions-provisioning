@@ -1,7 +1,36 @@
 Ext.define('Rally.technicalservices.util.PreferenceSaving',{
     singleton: true,
     logger: new Rally.technicalservices.Logger(),
-    PREF_CHUNK_LEN: 999,
+    PREF_CHUNK_LEN: 30000,
+    findKeysAndCreateDate: function(prefix, workspace){
+        this.logger.log( "findKeysAndLastModified", prefix );
+        var deferred = Ext.create('Deft.Deferred');
+        Ext.create('Rally.data.wsapi.Store', {
+            model: 'Preference',
+            fetch: ['Name','CreationDate'],
+            limit: 'Infinity',
+            context: {workspace: workspace},
+            sorters: [ { property: 'Name', direction: 'ASC' } ],
+            autoLoad: true,
+            filters: [ { property: 'Name', operator: 'contains', value: prefix } ],
+            listeners: {
+                scope: this, 
+                load: function(store,data,success) {
+                    this.logger.log('findKeysAndLastModified load', success);
+                    if (success) {
+                        var pref_keys = {};
+                        Ext.each(data, function(rec){
+                            pref_keys[rec.get('Name')] = rec.get('CreationDate');
+                        });
+                        deferred.resolve(pref_keys);
+                    } else {
+                        deferred.reject();
+                    }
+                }
+            }
+        });
+        return deferred.promise;        
+    },
     saveAsJSON: function(name, object, workspace, appId, filterByUser, project){
         /*
          * This function does the following:
@@ -30,7 +59,7 @@ Ext.define('Rally.technicalservices.util.PreferenceSaving',{
             scope: this,
             success: function(){
                 this.logger.log('preferences cleaned, now saving new ones');
-                this.save(prefs,workspace,appId,filterByUser,project).then({
+                this.save(prefs,workspace, appId,filterByUser,project).then({
                     scope: this,
                     success: function(){
                         deferred.resolve();
@@ -46,9 +75,6 @@ Ext.define('Rally.technicalservices.util.PreferenceSaving',{
             }
         });
         return deferred.promise; 
-    },
-    removePref: function(prefix, workspace,appId, filterByUser,project){
-        this._cleanPrefs(prefix, workspace,appId,filterByUser,project);
     },
     _cleanPrefs: function(prefix,workspace, appId,filterByUser,project){
         this.logger.log('_cleanPrefs');
@@ -128,11 +154,12 @@ Ext.define('Rally.technicalservices.util.PreferenceSaving',{
                         json_chunks.get(key)[idx] = val;
                     } 
                 },this);
-
+                
                 var objs = new Ext.util.HashMap();
                 json_chunks.each(function(key,value,length){
                     objs.add(key,this._getObjectFromJSONChunks(value));
                 },this);
+
                 deferred.resolve([objs,last_updated]);
             },
             failure: function(error) {
@@ -148,7 +175,8 @@ Ext.define('Rally.technicalservices.util.PreferenceSaving',{
         if (filterByUser == undefined) {filterByUser = false;}
         
         var deferred = Ext.create('Deft.Deferred');
-         Rally.data.PreferenceManager.update({
+        
+        Rally.data.PreferenceManager.update({
             appID: appId,
             project: project,
             workspace: workspace,
@@ -176,15 +204,15 @@ Ext.define('Rally.technicalservices.util.PreferenceSaving',{
             context: {workspace: workspace},
             sorters: [ { property: 'Name', direction: 'ASC' } ],
             autoLoad: true,
-            filters: [{ property: 'Name', operator: 'contains', value: key_part }],
+            filters: [ { property: 'Name', operator: 'contains', value: key_part } ],
             listeners: {
                 scope: this, 
                 load: function(store,data,success) {
-                    this.logger.log('_findPreferencesContainingKey load', success, data);
+                    this.logger.log('_findPreferencesContainingKey load', success);
                     if (success) {
                         deferred.resolve(data);
                     } else {
-                        deferred.reject('Error creating wsapi Store');
+                        deferred.reject('Error loading WSAPI store.');
                     }
                 }
             }
@@ -218,6 +246,4 @@ Ext.define('Rally.technicalservices.util.PreferenceSaving',{
         });
         return deferred.promise;
     }
-   
-
 });

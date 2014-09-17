@@ -1,3 +1,9 @@
+/*
+ * A series of utilities to help construct trees
+ * with data gotten bottom or middle-up
+ * 
+ */
+ 
 Ext.define('Rally.technicalservices.util.TreeBuilding', {
     singleton: true,
     logger: new Rally.technicalservices.Logger(),
@@ -18,7 +24,6 @@ Ext.define('Rally.technicalservices.util.TreeBuilding', {
             } else {
                 
                 var parent_oid =  direct_parent.ObjectID || direct_parent.get('ObjectID');
-                console.log('parent_oid',parent_oid);
                 if (!item_hash[parent_oid]) {
                     this.logger.log("Saved parent missing: ", parent_oid);
                     if ( !Ext.Array.contains(root_array,item) ) {
@@ -26,7 +31,6 @@ Ext.define('Rally.technicalservices.util.TreeBuilding', {
                     }
                 } else {
                     var parent = item_hash[parent_oid];
-                    console.log('children',parent.get('children'));
                     if ( !parent.get('children') ) { parent.set('children',[]); }
                     var kids = parent.get('children');
                     kids.push(item);
@@ -85,6 +89,9 @@ Ext.define('Rally.technicalservices.util.TreeBuilding', {
                 var model_as_hash = this._transformModelToHash(model, fields);
                 // children & parent are fields that are not a 
                 // part of the model def'n so getData doesn't provide them
+                if (model.get('ObjectID')){
+                    model_as_hash.id = model.get('ObjectID');
+                }
                 if ( model.get('children') ) {
                     model_as_hash.children = this.convertModelsToHashesLimitFields(model.get('children'),fields);
                 }

@@ -1,12 +1,12 @@
 <!DOCTYPE html>
 <html>
 <head>
-    <title>permissions-user-request</title>
+    <title>admin-permissions-provisioning</title>
     <!--  (c) 2013 Rally Software Development Corp.  All Rights Reserved. -->
-    <!--  Build Date: Tue Sep 16 2014 01:52:53 GMT-0600 (MDT) -->
+    <!--  Build Date: Tue Sep 16 2014 21:16:55 GMT-0600 (MDT) -->
     
     <script type="text/javascript">
-        var APP_BUILD_DATE = "Tue Sep 16 2014 01:52:53 GMT-0600 (MDT)";
+        var APP_BUILD_DATE = "Tue Sep 16 2014 21:16:55 GMT-0600 (MDT)";
         var CHECKSUM = [%= checksum %];
     </script>
     
@@ -17,7 +17,7 @@
             
             
                Rally.launchApp('CustomApp', {
-                   name: 'permissions-user-request'
+                   name: 'admin-permissions-provisioning'
                });
         });
     </script>
@@ -40,9 +40,6 @@
     margin-top: 25px;
     margin-right: 5px;
     cursor: pointer;
-},
-highlighted {
-	background: #00FF00'
 }
 .cls-error{
     color: #FF0000
