@@ -2,11 +2,11 @@
 ===============================
 
 ##Overview
-The permissions provisioning User app allows users with limited permissions to search for projects and submit permission requests for selected projects.  
+The permissions provisioning <a href="/deploy/UserApp.txt">User app</a> allows users with limited permissions to search for projects and submit permission requests for selected projects.  
 
-The permissions provisioning Admin app serves 2 functions:
-(1) To build and store the project name tree for a user with limited permissions to search and select projects from.  
-(2) To view user requests for project permissions and delete them once the request has been fulfilled.  
+The permissions provisioning <a href="/deploy/AdminApp.txt">Admin app</a> serves 2 functions:
+<br>(1) To build and store the project name tree for a user with limited permissions to search and select projects from.  
+<br>(2) To view user requests for project permissions and delete them once the request has been fulfilled.  
 
 ####Example Workflow Scenario:
 * Admin App is installed in the workspace on a dashboard for Rally administrators. 
@@ -48,4 +48,4 @@ Users with limited permissions should not have access to or try to use the Admin
 Searches for projects should be specific enough to limit results to a reasonable number, since there is not paging in the search results.  The project data is local so the search results are returned quickly, but the app will get sluggish if it needs to render more than 500-1000 search results at a time.  
 
 ## License
-The permissions provisioning apps are released "as-is" under the MIT License.  Please see the <a href="/master/LICENSE">LICENSE</a> file for full text.  
+The permissions provisioning apps are released "as-is" under the MIT License.  Please see the <a href="/LICENSE">LICENSE</a> file for full text.  
