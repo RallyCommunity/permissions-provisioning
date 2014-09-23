@@ -9,13 +9,13 @@ The permissions provisioning <a href="/deploy/AdminApp.txt">Admin app</a> serves
 <br>(2) To view user requests for project permissions and delete them once the request has been fulfilled.  
 
 ####Example Workflow Scenario:
-* Admin App is installed in the workspace on a dashboard for Rally administrators. 
-* Administrators generate the project tree for the first time by clicking the "Refresh Projects" button.
+* <b>Admin App</b> is installed in the workspace on a dashboard for Rally administrators. 
+* <b>Administrators</b> generate the project tree for the first time by clicking the "Refresh Projects" button.
 
 ![Screenshot](/images/admin-refresh-projects.png)
 
 * The <b>User App</b> is installed and shared with a project in the workspace by an Administrator.
-* 
+
 * <b>New Rally user</b> is given limited access to the project where the User app.  
 
 * <b>New Rally user</b> logs in to rally and searches for the projects that they need access to.  Users can search for a project by project name (includes any name in the project's path and will include hits on parent project names) or project owner first name, last name or email address.  Auto complete on whole words can help guide users search term choices.
