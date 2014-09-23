@@ -12,23 +12,29 @@ The permissions provisioning <a href="/deploy/AdminApp.txt">Admin app</a> serves
 * Admin App is installed in the workspace on a dashboard for Rally administrators. 
 * Administrators generate the project tree for the first time by clicking the "Refresh Projects" button.
 
+![Screenshot](/images/admin-refresh-projects.png)
+
 * The User App is installed and shared with a project in the workspace by an Administrator.
 * New rally user is given limited access to the project where the User app.  
 * The user app will show users they're pending permission requests, if they have not been cleared by an administrator.
  
-
+ ![Screenshot](/images/user-pending-permission-requests.png)
+ 
 * New rally user logs in to rally and searches for the projects that they need access to.  Users can search for a project by project name (includes any name in the project's path and will include hits on parent project names) or project owner first name, last name or email address.  Auto complete on whole words can help guide users search term choices.
 
-
+![Screenshot](/images/user-search-by-project.png)
+ 
 * New Rally User submits permission requests by selecting whether or not the user would like to be a team member and clicking the button for the desired project permission (Admin, Editor, Viewer)
 
-
+![Screenshot](/images/user-permission-select.png)
+ 
 * Administrators see the permission requests, including the Full project path, when they refresh the Admin App.  
 
+![Screenshot](/images/admin-requested-permission.png)
+ 
 * Administrators click on the link to the user to edit the user
 * Administator applies the appropriate permission
 * Administrator removes the permission request from the Admin App once the permission request has been fulfilled.  
-
 
 ## Requirements
 For users with limited permissions to use the User permissions provisioning app, the User needs, at minimum, Viewer permission for the project that the App is shared with in order to search the project name tree and submit permission requests.  
