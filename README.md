@@ -10,19 +10,19 @@ The permissions provisioning <a href="/deploy/AdminApp.txt">Admin app</a> serves
 
 ####Example Workflow Scenario:
 * <b>Admin App</b> is installed in the workspace on a dashboard for Rally administrators. 
-* <b>Administrators</b> generate the project tree for the first time by clicking the "Refresh Projects" button.
+* Administrators generate the project tree for the first time by clicking the "Refresh Projects" button.
 
 ![Screenshot](/images/admin-refresh-projects.png)
 
 * The <b>User App</b> is installed and shared with a project in the workspace by an Administrator.
 
-* <b>New Rally user</b> is given limited access to the project where the User app.  
+* New Rally user is given limited access to the project where the User app.  
 
-* <b>New Rally user</b> logs in to rally and searches for the projects that they need access to.  Users can search for a project by project name (includes any name in the project's path and will include hits on parent project names) or project owner first name, last name or email address.  Auto complete on whole words can help guide users search term choices.
+* New Rally user logs in to rally and searches for the projects that they need access to.  Users can search for a project by project name (includes any name in the project's path and will include hits on parent project names) or project owner first name, last name or email address.  Auto complete on whole words can help guide users search term choices.
 
 ![Screenshot](/images/user-search-by-project.png)
  
-* <b>New Rally user</b> submits permission requests by selecting whether or not the user would like to be a team member and clicking the button for the desired project permission (Admin, Editor, Viewer)
+* New Rally user submits permission requests by selecting whether or not the user would like to be a team member and clicking the button for the desired project permission (Admin, Editor, Viewer)
 
 ![Screenshot](/images/user-permission-select.png)
  
@@ -30,13 +30,13 @@ The permissions provisioning <a href="/deploy/AdminApp.txt">Admin app</a> serves
  
  ![Screenshot](/images/user-pending-permission-requests.png)
  
-* <b>Administrators</b> see the permission requests, including the Full project path, when they refresh the Admin App.  
+* Administrators see the permission requests, including the Full project path, when they refresh the Admin App.  
 
 ![Screenshot](/images/admin-requested-permission.png)
  
-* <b>Administrators</b> click on the link to the user to edit the user
-* <b>Administrator</b> applies the appropriate permission
-* <b>Administrator</b> removes the permission request from the Admin App once the permission request has been fulfilled.  
+* Administrators click on the link to the user to edit the user
+* Administrator applies the appropriate permission
+* Administrators removes the permission request from the Admin App once the permission request has been fulfilled.  
 
 ## Requirements
 For users with limited permissions to use the User permissions provisioning app, the User needs, at minimum, Viewer permission for the project that the App is shared with in order to search the project name tree and submit permission requests.  
